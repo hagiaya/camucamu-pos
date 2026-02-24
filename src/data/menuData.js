@@ -91,3 +91,25 @@ export const formatPhoneForFonnte = (phone) => {
     return cleaned;
 };
 
+export const pantuns = [
+    "Ke pasar beli pepaya, pulangnya mampir ke Senayan. Camu Camu emang slaaaay, bikin mood kamu langsung nyaman! ✨",
+    "Makan seblak di pinggir jalan, pedasnya bikin telinga pengang. Sekali nyicip lupakan mantan, Camu Camu bikin hidup makin terang! 🌈",
+    "Nonton drakor sambil makan kuaci, ceritanya bikin baper sekali. Camu Camu bestie sejati, temen setia buat asupan hari ini! 💖",
+    "Main game kalah terus, bikin kesel sampe ke tulang. Makan Camu Camu biar lurus, biar semangat makin gampang datang! 🔥",
+    "Jalan-jalan ke Kota Tua, jangan lupa beli kacamata. Camu Camu favorit kita semua, sekali gigit seribu cerita! 📖",
+    "Beli baju warnanya ungu, jangan lupa beli buat mama. Hidup emang sering bikin bingung, tapi Camu Camu selalu seirama! 🎵",
+    "Minum boba pake topping jelly, belinya bareng gebetan baru. Camu Camu bukan cuma sekali, tapi bikin nagih terus-terusan nih boss, senggol dong! 🤙",
+    "Ke mall pake baju rapi, biar kelihatan makin kece. Camu Camu asupan bergizi, bikin hari kamu gak lagi sepi alias mleyot! 🫠",
+    "Upload foto di media sosial, jangan lupa pake filter aesthetic. Camu Camu emang paling spesial, rasanya beneran gak ada obat, no debat! 💯",
+    "Nungguin chat doi belum dibalas, mending scroll TikTok cari hiburan. Jangan sampe hidup kamu makin malas, yuk Camu Camu dulu biar makin sat set! ⚡",
+    "Beli pulsa di konter depan, jangan lupa beli camilan. Camu Camu idola masa depan, bikin kamu makin bersinar di keramaian! 🌟",
+    "Belajar coding emang pusing, apalagi pas error melulu. Camu Camu temen yang paling pas, buat nemenin kamu cari ilmu! 💻",
+    "Pergi healing ke pantai Bali, pulangnya mampir ke Jogja. Camu Camu emang asik sekali, bikin semangat makin membara! 🏖️",
+    "Pakai outfit minimalis, biar kelihatan makin modis. Camu Camu rasanya manis, bikin hari-hari kamu makin manis juga, bestie! 🍭",
+    "Langit biru warnanya cerah, secerah senyummu di pagi hari. Jangan pernah bilang menyerah, Camu Camu siap hibur diri! 😊",
+    "Beli seblak kerupuknya banyak, dimakan pas lagi hujan. Camu Camu emang paling enak, asupan sehat gak pake beban! 🥗",
+    "Main skateboard jatuh melulu, tapi tetep gaya nomor satu. Camu Camu emang paling seru, temen setia tiap waktu! 🛹",
+    "Ke konser pake lightstick, jangan lupa bawa harapan. Camu Camu emang paling otentik, rasanya juara di tiap suapan! 👑",
+    "Nonton konser Tulus di Jakarta, nangis-nangis bareng kawan. Sekali gigit seribu cerita, Camu Camu emang idaman! 🤩",
+    "Mancing ikan dapetnya hiu, kagetnya bukan main. Camu Camu emang paling ILY, bikin kamu gak mau pindah ke lain! 🫶"
+];

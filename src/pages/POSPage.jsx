@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { categories, formatRupiah, formatPhoneForFonnte } from '../data/menuData';
+import { categories, formatRupiah, formatPhoneForFonnte, pantuns } from '../data/menuData';
 import { useToast } from '../components/Toast';
 import {
     Search,
@@ -837,8 +837,8 @@ export default function POSPage({ user }) {
                                 {/* Receipt */}
                                 <div className="receipt">
                                     <div className="receipt-header">
-                                        <h3>🍈 CAMU CAMU</h3>
-                                        <p>Healthy Bowls & Fresh Juices</p>
+                                        <h3 style={{ fontSize: 24, letterSpacing: 1 }}>✨ CAMU CAMU ✨</h3>
+                                        <p style={{ fontStyle: 'italic', fontWeight: 500 }}>sekali gigit, seribu cerita</p>
                                         <p style={{ marginTop: 4 }}>
                                             {new Date(lastOrder.createdAt).toLocaleDateString('id-ID', {
                                                 day: 'numeric', month: 'long', year: 'numeric',
@@ -888,8 +888,9 @@ export default function POSPage({ user }) {
                                     </div>
 
                                     <div className="receipt-footer">
-                                        <p>Terima kasih telah berkunjung! 🙏</p>
-                                        <p>www.camucamu.id</p>
+                                        <p>Makasih ya bestie udah jajan! ✨</p>
+                                        <p>Tag kita di IG ya: @camucamu.id 🔥</p>
+                                        <p style={{ marginTop: 4, opacity: 0.6, fontSize: 10 }}>#CamuCamuVibes #GakAdaObat</p>
                                     </div>
                                 </div>
 
@@ -1003,21 +1004,25 @@ export default function POSPage({ user }) {
                             setIsSendingWA(true);
 
                             try {
+                                const randomPantun = pantuns[Math.floor(Math.random() * pantuns.length)];
                                 const message = `
-*MELON CAMU CAMU*
-Healthy Bowls & Fresh Juices
-------------------------------
+*CAMU CAMU* ✨
+_sekali gigit, seribu cerita_
+----------------------------------
 ID: ${lastOrder?.id}
 Tanggal: ${new Date(lastOrder?.createdAt).toLocaleString('id-ID')}
 Customer: ${lastOrder?.customerName}
-------------------------------
-${lastOrder?.items.map(i => `${i.name} x${i.qty} = ${formatRupiah(i.price * i.qty)}`).join('\n')}
-------------------------------
+----------------------------------
+${lastOrder?.items.map(i => `✅ *${i.name}* x${i.qty} = ${formatRupiah(i.price * i.qty)}`).join('\n')}
+----------------------------------
 *TOTAL: ${formatRupiah(lastOrder?.total)}*
 Bayar: ${lastOrder?.paymentMethod === 'cash' ? `Tunai (${formatRupiah(lastOrder?.cashReceived)})` : 'QRIS'}
 ${lastOrder?.paymentMethod === 'cash' ? `Kembalian: ${formatRupiah(lastOrder?.change)}` : ''}
 
-Terima kasih telah berkunjung! 🙏
+*Bestie, ada pantun buat kamu:*
+${randomPantun}
+
+Terima kasih udah jajan di Camu Camu! Ditunggu kedatangannya lagi ya, slaaay! 💅🔥
 _www.camucamu.id_
                                 `;
 
@@ -1070,7 +1075,8 @@ _www.camucamu.id_
                         onClick={() => {
                             if (!waNumber) return showToast('Masukkan nomor WA!', 'error');
 
-                            const message = `*MELON CAMU CAMU*%0AHealthy Bowls %26 Fresh Juices%0A------------------------------%0AID: ${lastOrder?.id}%0ATanggal: ${new Date(lastOrder?.createdAt).toLocaleString('id-ID')}%0ACustomer: ${lastOrder?.customerName}%0A------------------------------%0A${lastOrder?.items.map(i => `${i.name} x${i.qty} = ${formatRupiah(i.price * i.qty)}`).join('%0A')}%0A------------------------------%0A*TOTAL: ${formatRupiah(lastOrder?.total)}*%0AMbayar: ${lastOrder?.paymentMethod === 'cash' ? `Tunai (${formatRupiah(lastOrder?.cashReceived)})` : 'QRIS'}%0A${lastOrder?.paymentMethod === 'cash' ? `Kembalian: ${formatRupiah(lastOrder?.change)}` : ''}%0A%0ATerima kasih telah berkunjung! 🙏%0A_www.camucamu.id_`;
+                            const randomPantun = pantuns[Math.floor(Math.random() * pantuns.length)];
+                            const message = `*CAMU CAMU* ✨%0A_sekali gigit, seribu cerita_%0A----------------------------------%0AID: ${lastOrder?.id}%0ATanggal: ${new Date(lastOrder?.createdAt).toLocaleString('id-ID')}%0ACustomer: ${lastOrder?.customerName}%0A----------------------------------%0A${lastOrder?.items.map(i => `✅ *${i.name}* x${i.qty} = ${formatRupiah(i.price * i.qty)}`).join('%0A')}%0A----------------------------------%0A*TOTAL: ${formatRupiah(lastOrder?.total)}*%0AMbayar: ${lastOrder?.paymentMethod === 'cash' ? `Tunai (${formatRupiah(lastOrder?.cashReceived)})` : 'QRIS'}%0A${lastOrder?.paymentMethod === 'cash' ? `Kembalian: ${formatRupiah(lastOrder?.change)}` : ''}%0A%0A*Bestie, ada pantun buat kamu:*%0A${randomPantun}%0A%0ATerima kasih udah jajan di Camu Camu! Ditunggu kedatangannya lagi ya, slaaay! 💅🔥%0A_www.camucamu.id_`;
 
                             let cleanNumber = waNumber.replace(/\D/g, '');
                             if (cleanNumber.startsWith('0')) {
