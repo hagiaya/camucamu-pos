@@ -31,6 +31,8 @@ export default function POSPage({ user }) {
     const [cashReceived, setCashReceived] = useState('');
     const [qrisTimer, setQrisTimer] = useState(300); // 5 minutes
     const [qrisStatus, setQrisStatus] = useState('waiting'); // 'waiting', 'confirmed'
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [selectedVariant, setSelectedVariant] = useState(null);
     const timerRef = useRef(null);
 
     const { state, dispatch } = useApp();
@@ -49,7 +51,21 @@ export default function POSPage({ user }) {
     });
 
     const addToCart = (item) => {
-        dispatch({ type: 'ADD_TO_CART', payload: item });
+        if (item.variants && item.variants.length > 0 && !selectedVariant) {
+            setSelectedProduct(item);
+            setSelectedVariant(item.variants[0]);
+            return;
+        }
+
+        const finalItem = selectedVariant
+            ? { ...item, id: `${item.id}-${selectedVariant.id}`, name: `${item.name} (${selectedVariant.name})`, price: item.price + selectedVariant.price }
+            : item;
+
+        dispatch({ type: 'ADD_TO_CART', payload: finalItem });
+        if (selectedProduct) {
+            setSelectedProduct(null);
+            setSelectedVariant(null);
+        }
     };
 
     const total = state.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
@@ -203,7 +219,32 @@ export default function POSPage({ user }) {
                     {/* Menu Grid */}
                     <div className="pos-menu-grid">
                         {filtered.map((item) => (
-                            <div key={item.id} className="pos-item-card" onClick={() => addToCart(item)}>
+                            <div
+                                key={item.id}
+                                className={`pos-item-card ${item.stock !== undefined && item.stock <= 0 ? 'out' : ''}`}
+                                onClick={() => (item.stock === undefined || item.stock > 0) && addToCart(item)}
+                                style={{
+                                    position: 'relative',
+                                    opacity: item.stock <= 0 ? 0.6 : 1,
+                                    cursor: item.stock <= 0 ? 'not-allowed' : 'pointer',
+                                    filter: item.stock <= 0 ? 'grayscale(0.8)' : 'none'
+                                }}
+                            >
+                                {item.stock <= 5 && item.stock > 0 && (
+                                    <span style={{
+                                        position: 'absolute', top: 4, right: 4,
+                                        fontSize: 8, background: 'var(--yellow)', color: '#000',
+                                        padding: '2px 4px', borderRadius: 4, fontWeight: 700
+                                    }}>SISA {item.stock}</span>
+                                )}
+                                {item.stock <= 0 && (
+                                    <span style={{
+                                        position: 'absolute', top: 4, right: 4,
+                                        fontSize: 8, background: 'var(--coral)', color: 'white',
+                                        padding: '2px 4px', borderRadius: 4, fontWeight: 700
+                                    }}>HABIS</span>
+                                )}
+
                                 <div className="emoji">
                                     {(item.image.startsWith('/') || item.image.startsWith('http')) ? (
                                         <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} />
@@ -213,7 +254,9 @@ export default function POSPage({ user }) {
                                 </div>
 
                                 <div className="name">{item.name}</div>
-                                <div className="price">{formatRupiah(item.price)}</div>
+                                <div className="price" style={{ color: item.stock <= 0 ? 'var(--text-tertiary)' : 'var(--teal-light)' }}>
+                                    {formatRupiah(item.price)}
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -1091,6 +1134,61 @@ _www.camucamu.id_
                     </button>
 
 
+                </div>
+            </div>
+
+            {/* ========== VARIANT MODAL ========== */}
+            <div className={`modal-overlay ${selectedProduct ? 'open' : ''}`}
+                onClick={() => setSelectedProduct(null)}>
+                <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+                    <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
+                        <div style={{
+                            width: 80, height: 80, borderRadius: 12, overflow: 'hidden',
+                            background: 'var(--bg-surface)', border: '1px solid var(--border)'
+                        }}>
+                            {selectedProduct?.image && (selectedProduct.image.startsWith('/') || selectedProduct.image.startsWith('http')) ? (
+                                <img src={selectedProduct.image} alt={selectedProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                                <div style={{ fontSize: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>{selectedProduct?.image}</div>
+                            )}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <h3 style={{ margin: 0 }}>{selectedProduct?.name}</h3>
+                            <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '4px 0 8px' }}>Pilih Varian Produk</p>
+                            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--coral)' }}>
+                                {selectedProduct && formatRupiah(selectedProduct.price + (selectedVariant?.price || 0))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+                        {selectedProduct?.variants?.map(v => (
+                            <button
+                                key={v.id}
+                                onClick={() => setSelectedVariant(v)}
+                                style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    padding: '14px 18px', borderRadius: 12, border: '2px solid',
+                                    borderColor: selectedVariant?.id === v.id ? 'var(--teal)' : 'var(--border)',
+                                    background: selectedVariant?.id === v.id ? 'rgba(180, 83, 9, 0.05)' : 'var(--bg-card)',
+                                    cursor: 'pointer', transition: 'var(--transition-fast)',
+                                    textAlign: 'left'
+                                }}
+                            >
+                                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{v.name}</span>
+                                <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
+                                    {v.price > 0 ? `+${formatRupiah(v.price)}` : 'Gratis'}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 12 }}>
+                        <button className="btn btn-secondary" onClick={() => setSelectedProduct(null)} style={{ flex: 1 }}>Batal</button>
+                        <button className="btn btn-primary" style={{ flex: 2 }} onClick={() => addToCart(selectedProduct)}>
+                            Tambah Pesanan
+                        </button>
+                    </div>
                 </div>
             </div>
 

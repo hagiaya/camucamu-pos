@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { AppProvider } from './context/AppContext';
 import Navbar from './components/Navbar';
 import CartSidebar from './components/CartSidebar';
+import ChatBot from './components/ChatBot';
 import LandingPage from './pages/LandingPage';
 import MenuPage from './pages/MenuPage';
 import AdminPage from './pages/AdminPage';
@@ -41,6 +42,11 @@ function AppContent() {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/menu" element={<MenuPage />} />
               </Routes>
+              <ChatBot onNavigate={(target) => {
+                if (target === 'menu') {
+                  window.location.href = '/menu';
+                }
+              }} />
             </>
           }
         />

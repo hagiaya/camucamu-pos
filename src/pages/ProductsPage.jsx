@@ -35,6 +35,7 @@ export default function ProductsPage() {
         description: '',
         image: '🍟',
         popular: false,
+        stock: '',
     });
 
     const products = state.products || [];
@@ -56,7 +57,7 @@ export default function ProductsPage() {
     const totalModalAll = products.reduce((sum, p) => sum + p.cost, 0);
 
     const resetForm = () => {
-        setForm({ name: '', category: 'makanan', price: '', cost: '', description: '', image: '🍟', popular: false });
+        setForm({ name: '', category: 'makanan', price: '', cost: '', description: '', image: '🍟', popular: false, stock: '' });
     };
 
     const openAdd = () => {
@@ -74,6 +75,7 @@ export default function ProductsPage() {
             description: product.description,
             image: product.image,
             popular: product.popular || false,
+            stock: product.stock?.toString() || '0',
         });
         setEditingProduct(product);
         setShowAddModal(true);
@@ -102,6 +104,7 @@ export default function ProductsPage() {
             description: form.description,
             image: form.image,
             popular: form.popular,
+            stock: parseInt(form.stock) || 0,
         };
 
         if (editingProduct) {
@@ -264,6 +267,7 @@ export default function ProductsPage() {
                         <span style={{ textAlign: 'right' }}>HARGA JUAL</span>
                         <span style={{ textAlign: 'right' }}>MODAL (HPP)</span>
                         <span style={{ textAlign: 'right' }}>UNTUNG/PCS</span>
+                        <span style={{ textAlign: 'right' }}>STOK</span>
                         <span style={{ textAlign: 'right' }}>MARGIN</span>
                         <span style={{ textAlign: 'center' }}>AKSI</span>
                     </div>
@@ -284,7 +288,7 @@ export default function ProductsPage() {
                             return (
                                 <div key={product.id} style={{
                                     display: 'grid',
-                                    gridTemplateColumns: '3fr 1.2fr 1.2fr 1.2fr 1.2fr 120px',
+                                    gridTemplateColumns: '3fr 1.2fr 1.2fr 1.2fr 1.2fr 1.2fr 120px',
                                     padding: '20px 24px',
                                     borderBottom: '1px solid var(--border)',
                                     alignItems: 'center',
@@ -340,6 +344,12 @@ export default function ProductsPage() {
                                     {/* Profit per unit */}
                                     <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 15, color: 'var(--green)' }}>
                                         +{formatRupiah(profit)}
+                                    </div>
+
+                                    {/* Stock */}
+                                    <div style={{ textAlign: 'right', fontWeight: 600, color: product.stock <= 5 ? 'var(--coral)' : 'var(--text-primary)' }}>
+                                        <div style={{ fontSize: 14 }}>{product.stock}</div>
+                                        <div style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Tersedia</div>
                                     </div>
 
                                     {/* Margin */}
@@ -462,6 +472,13 @@ export default function ProductsPage() {
                                     value={form.cost} required min="0"
                                     onChange={(e) => setForm({ ...form, cost: e.target.value })} />
                             </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label>Stok Saat Ini *</label>
+                            <input className="form-input" type="number" placeholder="100"
+                                value={form.stock} required min="0"
+                                onChange={(e) => setForm({ ...form, stock: e.target.value })} />
                         </div>
 
                         {/* Live calculation preview */}

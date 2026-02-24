@@ -4,7 +4,8 @@ import { categories, formatRupiah, formatPhoneForFonnte } from '../data/menuData
 import { useToast } from '../components/Toast';
 import Footer from '../components/Footer';
 import CartSidebar from '../components/CartSidebar';
-import { ShoppingCart, Search, CheckCircle, ArrowLeft, Clock, QrCode, Banknote } from 'lucide-react';
+import ChatBot from '../components/ChatBot';
+import { ShoppingCart, Search, CheckCircle, ArrowLeft, Clock, QrCode, Banknote, Star } from 'lucide-react';
 
 export default function MenuPage() {
     const [activeCategory, setActiveCategory] = useState('all');
@@ -19,6 +20,8 @@ export default function MenuPage() {
     const [cashReceived, setCashReceived] = useState('');
     const [qrisTimer, setQrisTimer] = useState(300);
     const [lastOrder, setLastOrder] = useState(null);
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [selectedVariant, setSelectedVariant] = useState(null);
     const timerRef = useRef(null);
 
     const { state, dispatch } = useApp();
@@ -40,8 +43,25 @@ export default function MenuPage() {
     });
 
     const addToCart = (item) => {
-        dispatch({ type: 'ADD_TO_CART', payload: item });
-        showToast(`${item.name} ditambahkan!`);
+        if (item.variants && item.variants.length > 0 && !selectedVariant) {
+            setSelectedProduct(item);
+            setSelectedVariant(item.variants[0]);
+            setOrderStep('variant-select');
+            return;
+        }
+
+        const finalItem = selectedVariant
+            ? { ...item, id: `${item.id}-${selectedVariant.id}`, name: `${item.name} (${selectedVariant.name})`, price: item.price + selectedVariant.price }
+            : item;
+
+        dispatch({ type: 'ADD_TO_CART', payload: finalItem });
+        showToast(`${finalItem.name} ditambahkan!`);
+
+        if (orderStep === 'variant-select') {
+            setOrderStep('closed');
+            setSelectedProduct(null);
+            setSelectedVariant(null);
+        }
     };
 
     const handleCheckout = () => {
@@ -226,21 +246,29 @@ Silakan tunjukkan pesan ini ke kasir jika Anda memilih bayar Cash.
                 ) : (
                     <div className="menu-grid">
                         {filtered.map((item) => (
-                            <div key={item.id} className="menu-item-card">
+                            <div key={item.id} className={`menu-item-card ${item.stock <= 0 ? 'out-of-stock' : ''}`}>
                                 {item.popular && <span className="menu-item-popular">⭐ Popular</span>}
+                                {item.stock <= 5 && item.stock > 0 && <span className="menu-item-stock-warning">Sisa {item.stock}!</span>}
+                                {item.stock <= 0 && <span className="menu-item-out">Habis</span>}
                                 <div className="menu-item-image-container">
                                     {(item.image.startsWith('/') || item.image.startsWith('http')) ? (
                                         <img src={item.image} alt={item.name} className="menu-item-img" />
                                     ) : (
                                         <span className="menu-item-emoji">{item.image}</span>
                                     )}
-
                                 </div>
                                 <h3 className="menu-item-name">{item.name}</h3>
                                 <p className="menu-item-desc">{item.description}</p>
                                 <div className="menu-item-footer">
                                     <span className="menu-item-price">{formatRupiah(item.price)}</span>
-                                    <button className="menu-item-add" onClick={() => addToCart(item)}>+</button>
+                                    <button
+                                        className="menu-item-add"
+                                        onClick={() => (item.stock === undefined || item.stock > 0) && addToCart(item)}
+                                        disabled={item.stock !== undefined && item.stock <= 0}
+                                        style={{ opacity: item.stock <= 0 ? 0.3 : 1, cursor: item.stock <= 0 ? 'not-allowed' : 'pointer' }}
+                                    >
+                                        {item.stock <= 0 ? 'X' : '+'}
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -259,7 +287,57 @@ Silakan tunjukkan pesan ini ke kasir jika Anda memilih bayar Cash.
 
             {/* ==================== ORDER MODAL ==================== */}
             <div className={`modal-overlay ${orderStep !== 'closed' ? 'open' : ''}`} onClick={closeModal}>
-                <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+                <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: orderStep === 'variant-select' ? 400 : 480 }}>
+
+                    {/* ===== VARIANT SELECT ===== */}
+                    {orderStep === 'variant-select' && selectedProduct && (
+                        <div>
+                            <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
+                                <div style={{ width: 80, height: 80, borderRadius: 12, overflow: 'hidden', background: 'var(--bg-surface)' }}>
+                                    {(selectedProduct.image.startsWith('/') || selectedProduct.image.startsWith('http')) ? (
+                                        <img src={selectedProduct.image} alt={selectedProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                        <div style={{ fontSize: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>{selectedProduct.image}</div>
+                                    )}
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <h3 style={{ margin: 0 }}>{selectedProduct.name}</h3>
+                                    <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '4px 0 8px' }}>Pilih varian favoritmu</p>
+                                    <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--coral-light)' }}>
+                                        {formatRupiah(selectedProduct.price + (selectedVariant?.price || 0))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+                                {selectedProduct.variants.map(v => (
+                                    <button
+                                        key={v.id}
+                                        onClick={() => setSelectedVariant(v)}
+                                        style={{
+                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                            padding: '12px 16px', borderRadius: 10, border: '2px solid',
+                                            borderColor: selectedVariant?.id === v.id ? 'var(--teal)' : 'var(--border)',
+                                            background: selectedVariant?.id === v.id ? 'rgba(180, 83, 9, 0.05)' : 'var(--bg-card)',
+                                            cursor: 'pointer', transition: 'var(--transition-fast)'
+                                        }}
+                                    >
+                                        <span style={{ fontWeight: 600 }}>{v.name}</span>
+                                        <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
+                                            {v.price > 0 ? `+${formatRupiah(v.price)}` : 'Gratis'}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 12 }}>
+                                <button className="btn btn-secondary" onClick={closeModal} style={{ flex: 1 }}>Batal</button>
+                                <button className="btn btn-primary" style={{ flex: 2 }} onClick={() => addToCart(selectedProduct)}>
+                                    Tambah ke Keranjang
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* ===== SUCCESS ===== */}
                     {orderStep === 'success' && (
@@ -569,6 +647,13 @@ Silakan tunjukkan pesan ini ke kasir jika Anda memilih bayar Cash.
             </div>
 
             <Footer />
+            <ChatBot onNavigate={() => {
+                const searchInput = document.querySelector('.search-input');
+                if (searchInput) {
+                    searchInput.scrollIntoView({ behavior: 'smooth' });
+                    searchInput.focus();
+                }
+            }} />
         </div>
     );
 }

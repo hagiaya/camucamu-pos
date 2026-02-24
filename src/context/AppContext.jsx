@@ -21,23 +21,49 @@ const loadState = () => {
         if (saved) {
             const parsed = JSON.parse(saved);
 
-            // Force reset if products are from old version (e.g. contains "Dragon" or doesn't have "Banana Roll")
+            // Force reset if products are from old version
             const isOutdated = parsed.products &&
                 (parsed.products.some(p => p.name.includes('Smoothie') || p.name.includes('Dragon')) ||
                     !parsed.products.some(p => p.name.includes('Banana Roll')));
 
+            const productsRaw = (isOutdated || !parsed.products || parsed.products.length === 0)
+                ? defaultMenuItems
+                : parsed.products;
+
+            // NEW: Always sync images from defaultMenuItems if names match 
+            // to ensure no "broken" images from old versions are stuck in localStorage
+            const syncedProducts = productsRaw.map(p => {
+                const defaultItem = defaultMenuItems.find(d => d.name === p.name);
+                let finalImage = p.image;
+
+                // If current image is missing or just an emoji (not a path), and default has a path
+                if ((!p.image || !p.image.startsWith('/')) && defaultItem && defaultItem.image.startsWith('/')) {
+                    finalImage = defaultItem.image;
+                }
+
+                return {
+                    ...p,
+                    image: finalImage,
+                    stock: p.stock !== undefined ? p.stock : 100
+                };
+            });
+
             return {
                 ...initialState,
                 ...parsed,
-                products: (isOutdated || !parsed.products || parsed.products.length === 0)
-                    ? defaultMenuItems
-                    : parsed.products,
+                products: syncedProducts,
             };
         }
     } catch (e) {
         console.error('Error loading state:', e);
     }
-    return { ...initialState, products: defaultMenuItems };
+    return {
+        ...initialState,
+        products: defaultMenuItems.map(p => ({
+            ...p,
+            stock: p.stock !== undefined ? p.stock : 100
+        }))
+    };
 };
 
 function appReducer(state, action) {
@@ -138,10 +164,22 @@ function appReducer(state, action) {
                 cashierName: action.payload.cashierName || null,
                 createdAt: new Date().toISOString(),
             };
+            const updatedProducts = state.products.map(p => {
+                const cartItem = state.cart.find(item => {
+                    const baseId = String(item.id).split('-')[0];
+                    return baseId === p.id.toString() || baseId === p.id;
+                });
+                if (cartItem) {
+                    return { ...p, stock: Math.max(0, (p.stock || 0) - cartItem.qty) };
+                }
+                return p;
+            });
+
             return {
                 ...state,
                 orders: [order, ...state.orders],
                 transactions: [order, ...state.transactions],
+                products: updatedProducts,
                 cart: [],
             };
         }
@@ -164,10 +202,22 @@ function appReducer(state, action) {
                 cashierName: action.payload.cashierName || 'System',
                 createdAt: new Date().toISOString(),
             };
+            const updatedProductsOnline = state.products.map(p => {
+                const cartItem = action.payload.items.find(item => {
+                    const baseId = String(item.id).split('-')[0];
+                    return baseId === p.id.toString() || baseId === p.id;
+                });
+                if (cartItem) {
+                    return { ...p, stock: Math.max(0, (p.stock || 0) - cartItem.qty) };
+                }
+                return p;
+            });
+
             return {
                 ...state,
                 orders: [onlineOrder, ...state.orders],
                 transactions: [onlineOrder, ...state.transactions],
+                products: updatedProductsOnline,
                 cart: [],
             };
         }
@@ -220,11 +270,22 @@ function appReducer(state, action) {
         }
 
 
-        case 'SET_INITIAL_STATE':
+        case 'SET_INITIAL_STATE': {
+            const mergedProducts = action.payload.products ? action.payload.products.map(p => {
+                const defaultItem = defaultMenuItems.find(d => d.name === p.name);
+                // If the product doesn't have a valid image path but the default one does, sync it
+                if ((!p.image || !p.image.startsWith('/')) && defaultItem && defaultItem.image.startsWith('/')) {
+                    return { ...p, image: defaultItem.image };
+                }
+                return p;
+            }) : state.products;
+
             return {
                 ...state,
                 ...action.payload,
+                products: mergedProducts,
             };
+        }
 
         default:
             return state;
