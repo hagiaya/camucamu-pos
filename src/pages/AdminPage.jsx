@@ -150,86 +150,46 @@ export default function AdminPage() {
     }
 
     const sendOrderReadyWhatsApp = async (order) => {
-        const phone = formatPhoneForFonnte(order.customerPhone);
+        let phone = (order.customerPhone || '').replace(/\D/g, '');
         if (!phone) {
-            console.warn('No valid phone number for order', order.id);
+            showToast('Tidak ada nomor WA pelanggan.', 'error');
             return false;
         }
+        if (phone.startsWith('0')) {
+            phone = '62' + phone.substring(1);
+        }
 
-        const message = `
-*PESANAN SIAP DIJEMPUT!* 🍈
+        const message = `*PESANAN SIAP DIJEMPUT!* 🍈
 ------------------------------
 Halo Kak ${order.customerName},
 Pesanan Kakak dengan ID: *${order.id}* sudah siap dan bisa dijemput di outlet *Camu Camu*.
 
 Silakan datang dan tunjukkan pesan ini ke tim kami ya. 
 Sampai ketemu! 🙏
-------------------------------
-`;
+------------------------------`;
 
-        try {
-            const res = await fetch('https://api.fonnte.com/send', {
-                method: 'POST',
-                headers: {
-                    'Authorization': import.meta.env.VITE_FONNTE_TOKEN || 'zQe1WteVyRK7mVqNrpQT',
-                },
-                body: new URLSearchParams({
-                    'target': phone,
-                    'message': message,
-                })
-            });
-            const data = await res.json();
-            console.log('Fonnte Response (Order Ready):', data);
-            if (data.status) {
-                showToast('Notifikasi WA terkirim! ✅');
-                return true;
-            } else {
-                showToast('Fonnte Error: ' + (data.reason || 'Cek kuota/WA'), 'error');
-                return false;
-            }
-        } catch (err) {
-            console.error('Failed to send WhatsApp notification:', err);
-            showToast('Gagal kirim WA. Cek koneksi.', 'error');
-            return false;
-        }
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+        return true;
     };
 
     const sendUnpaidWhatsApp = async (order) => {
-        const phone = formatPhoneForFonnte(order.customerPhone);
+        let phone = (order.customerPhone || '').replace(/\D/g, '');
         if (!phone) {
             showToast('Tidak ada nomor WA pelanggan.', 'error');
             return false;
+        }
+        if (phone.startsWith('0')) {
+            phone = '62' + phone.substring(1);
         }
 
         const d = new Date(order.createdAt);
         const dt = d.toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
         const message = `Halo Kak ${order.customerName},\nIni dari Camu Camu. Mau ngingetin pesanan Kakak tanggal ${dt} senilai Rp ${order.total.toLocaleString('id-ID')} statusnya belum dibayar ya.\n\nDitunggu pembayarannya di kasir. Terima kasih! 🙏`;
 
-        try {
-            const res = await fetch('https://api.fonnte.com/send', {
-                method: 'POST',
-                headers: {
-                    'Authorization': import.meta.env.VITE_FONNTE_TOKEN || 'zQe1WteVyRK7mVqNrpQT',
-                },
-                body: new URLSearchParams({
-                    'target': phone,
-                    'message': message,
-                })
-            });
-            const data = await res.json();
-            console.log('Fonnte Response (Unpaid):', data);
-            if (data.status) {
-                showToast('Tagihan WA terkirim! ✅');
-                return true;
-            } else {
-                showToast('Fonnte Error: ' + (data.reason || 'Cek kuota/WA'), 'error');
-                return false;
-            }
-        } catch (err) {
-            console.error('Failed to send WhatsApp notification:', err);
-            showToast('Gagal kirim WA. Cek koneksi.', 'error');
-            return false;
-        }
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+        return true;
     };
 
     const totalExpensesCost = (state.expenses || []).reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
