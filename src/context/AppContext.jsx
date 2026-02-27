@@ -453,6 +453,15 @@ export function AppProvider({ children }) {
                         createdAt: new Date().toISOString(),
                     };
                     await syncTransaction(newOrder);
+
+                    // Sync product stock to Supabase
+                    for (const item of state.cart) {
+                        const baseId = String(item.id).split('-')[0];
+                        const prod = state.products.find(p => String(p.id) === baseId);
+                        if (prod) {
+                            await syncProduct({ ...prod, stock: Math.max(0, (prod.stock || 0) - item.qty) });
+                        }
+                    }
                     break;
                 case 'ADD_ONLINE_ORDER':
                     const onlineOrder = {
@@ -463,6 +472,15 @@ export function AppProvider({ children }) {
                         createdAt: new Date().toISOString(),
                     };
                     await syncTransaction(onlineOrder);
+
+                    // Sync product stock to Supabase
+                    for (const item of action.payload.items) {
+                        const baseId = String(item.id).split('-')[0];
+                        const prod = state.products.find(p => String(p.id) === baseId);
+                        if (prod) {
+                            await syncProduct({ ...prod, stock: Math.max(0, (prod.stock || 0) - item.qty) });
+                        }
+                    }
                     break;
                 case 'ADD_EXPENSE':
                     const newExp = {
@@ -475,9 +493,43 @@ export function AppProvider({ children }) {
                 case 'UPDATE_EXPENSE':
                     await syncExpense(action.payload);
                     break;
-                case 'UPDATE_ORDER':
+                case 'UPDATE_ORDER': {
                     await syncTransaction(action.payload);
+
+                    const oldOrder = state.transactions.find(t => t.id === action.payload.id);
+                    if (!oldOrder) break;
+
+                    let tempProducts = [...state.products];
+                    // Restore old stock
+                    oldOrder.items.forEach(oldItem => {
+                        const baseId = String(oldItem.id).split('-')[0];
+                        const pIdx = tempProducts.findIndex(p => String(p.id) === baseId);
+                        if (pIdx !== -1) {
+                            tempProducts[pIdx] = { ...tempProducts[pIdx], stock: (tempProducts[pIdx].stock || 0) + oldItem.qty };
+                        }
+                    });
+                    // Apply new stock
+                    action.payload.items.forEach(newItem => {
+                        const baseId = String(newItem.id).split('-')[0];
+                        const pIdx = tempProducts.findIndex(p => String(p.id) === baseId);
+                        if (pIdx !== -1) {
+                            tempProducts[pIdx] = { ...tempProducts[pIdx], stock: Math.max(0, (tempProducts[pIdx].stock || 0) - newItem.qty) };
+                        }
+                    });
+
+                    // Sync changed products to Supabase
+                    for (const oldItem of oldOrder.items) {
+                        const baseId = String(oldItem.id).split('-')[0];
+                        const finalProd = tempProducts.find(p => String(p.id) === baseId);
+                        if (finalProd) await syncProduct(finalProd);
+                    }
+                    for (const newItem of action.payload.items) {
+                        const baseId = String(newItem.id).split('-')[0];
+                        const finalProd = tempProducts.find(p => String(p.id) === baseId);
+                        if (finalProd) await syncProduct(finalProd);
+                    }
                     break;
+                }
                 case 'UPDATE_ORDER_STATUS':
                     await syncTransaction({ id: action.payload.id, status: action.payload.status });
                     break;
