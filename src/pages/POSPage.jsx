@@ -130,6 +130,7 @@ export default function POSPage({ user }) {
 
     const processPayment = (method) => {
         const order = {
+            ...(state.editingOrder || {}),
             id: state.editingOrder ? state.editingOrder.id : `ORD-${Date.now()}`,
             items: [...state.cart],
             total,
@@ -141,7 +142,7 @@ export default function POSPage({ user }) {
             type: orderType,
             cashReceived: method === 'cash' ? cashReceivedNum : null,
             change: method === 'cash' ? changeDue : null,
-            cashierName: user?.username || 'Admin',
+            cashierName: user?.username || (state.editingOrder?.cashierName || 'Admin'),
             status: state.editingOrder ? state.editingOrder.status : 'completed',
             createdAt: state.editingOrder ? state.editingOrder.createdAt : new Date().toISOString(),
         };
