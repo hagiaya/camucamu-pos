@@ -676,6 +676,7 @@ function QuickAction({ icon, label, desc, onClick, color }) {
 // Transactions Management Component
 function TransactionsManagement({ onSendWA, onSendUnpaidWA, role, setActiveTab }) {
     const { state, dispatch } = useApp();
+    const { showToast, ToastContainer: TMToastContainer } = useToast();
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
 
@@ -702,6 +703,7 @@ function TransactionsManagement({ onSendWA, onSendUnpaidWA, role, setActiveTab }
 
     return (
         <div style={{ padding: 32 }}>
+            <TMToastContainer />
             <div style={{ marginBottom: 32 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                     <div>
@@ -952,6 +954,29 @@ function TransactionsManagement({ onSendWA, onSendUnpaidWA, role, setActiveTab }
                                         {txn.status === 'done' && (
                                             <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Transaksi Selesai</span>
                                         )}
+                                        <button
+                                            onClick={() => {
+                                                if (window.confirm('Yakin ingin menghapus pesanan ini? Stok produk akan dikembalikan otomatis.')) {
+                                                    dispatch({ type: 'DELETE_ORDER', payload: txn.id });
+                                                    showToast('Pesanan berhasil dihapus! 🎉');
+                                                }
+                                            }}
+                                            title="Hapus Pesanan"
+                                            style={{
+                                                padding: '8px',
+                                                background: 'rgba(255, 107, 107, 0.1)',
+                                                color: 'var(--coral)',
+                                                border: '1px solid rgba(255, 107, 107, 0.2)',
+                                                borderRadius: 8,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                marginLeft: 'auto'
+                                            }}
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
                                     </div>
                                 </td>
                             </tr>

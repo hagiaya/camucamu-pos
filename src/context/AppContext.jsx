@@ -230,6 +230,29 @@ function appReducer(state, action) {
             };
         }
 
+        case 'DELETE_ORDER': {
+            const index = state.transactions.findIndex(t => t.id === action.payload);
+            if (index === -1) return state;
+            const oldOrder = state.transactions[index];
+
+            let tempProducts = [...state.products];
+            // Revert stock from deleted order
+            oldOrder.items.forEach(oldItem => {
+                const baseId = String(oldItem.id).split('-')[0];
+                const pIdx = tempProducts.findIndex(p => String(p.id) === baseId);
+                if (pIdx !== -1) {
+                    tempProducts[pIdx] = { ...tempProducts[pIdx], stock: (tempProducts[pIdx].stock || 0) + oldItem.qty };
+                }
+            });
+
+            return {
+                ...state,
+                orders: state.orders.filter(o => o.id !== action.payload),
+                transactions: state.transactions.filter(t => t.id !== action.payload),
+                products: tempProducts,
+            };
+        }
+
         case 'ADD_ONLINE_ORDER': {
             const onlineOrder = {
                 id: `ONL-${Date.now()}`,
@@ -410,6 +433,11 @@ export function AppProvider({ children }) {
         await supabase.from('transactions').upsert(txn);
     };
 
+    const deleteTransaction = async (id) => {
+        if (!import.meta.env.VITE_SUPABASE_URL) return;
+        await supabase.from('transactions').delete().eq('id', id);
+    };
+
     const syncExpense = async (expense) => {
         if (!import.meta.env.VITE_SUPABASE_URL) return;
         await supabase.from('expenses').upsert(expense);
@@ -525,6 +553,30 @@ export function AppProvider({ children }) {
                     }
                     for (const newItem of action.payload.items) {
                         const baseId = String(newItem.id).split('-')[0];
+                        const finalProd = tempProducts.find(p => String(p.id) === baseId);
+                        if (finalProd) await syncProduct(finalProd);
+                    }
+                    break;
+                }
+                case 'DELETE_ORDER': {
+                    await deleteTransaction(action.payload);
+
+                    const oldOrder = state.transactions.find(t => t.id === action.payload);
+                    if (!oldOrder) break;
+
+                    let tempProducts = [...state.products];
+                    // Restore old stock
+                    oldOrder.items.forEach(oldItem => {
+                        const baseId = String(oldItem.id).split('-')[0];
+                        const pIdx = tempProducts.findIndex(p => String(p.id) === baseId);
+                        if (pIdx !== -1) {
+                            tempProducts[pIdx] = { ...tempProducts[pIdx], stock: (tempProducts[pIdx].stock || 0) + oldItem.qty };
+                        }
+                    });
+
+                    // Sync restored products to Supabase
+                    for (const oldItem of oldOrder.items) {
+                        const baseId = String(oldItem.id).split('-')[0];
                         const finalProd = tempProducts.find(p => String(p.id) === baseId);
                         if (finalProd) await syncProduct(finalProd);
                     }
