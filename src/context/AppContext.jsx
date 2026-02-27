@@ -416,36 +416,39 @@ export function AppProvider({ children }) {
 
     const syncProduct = async (product) => {
         if (!import.meta.env.VITE_SUPABASE_URL) return;
-
-        // Ensure id is a string, and include all properties (including stock)
         const productToSync = { ...product, id: String(product.id) };
-
-        await supabase.from('products').upsert(productToSync);
+        const { error } = await supabase.from('products').upsert(productToSync);
+        if (error) console.error('Error syncing product:', error);
     };
 
     const deleteProduct = async (id) => {
         if (!import.meta.env.VITE_SUPABASE_URL) return;
-        await supabase.from('products').delete().eq('id', id);
+        const { error } = await supabase.from('products').delete().eq('id', id);
+        if (error) console.error('Error deleting product:', error);
     };
 
     const syncTransaction = async (txn) => {
         if (!import.meta.env.VITE_SUPABASE_URL) return;
-        await supabase.from('transactions').upsert(txn);
+        const { error } = await supabase.from('transactions').upsert(txn);
+        if (error) console.error('Error syncing transaction:', error);
     };
 
     const deleteTransaction = async (id) => {
         if (!import.meta.env.VITE_SUPABASE_URL) return;
-        await supabase.from('transactions').delete().eq('id', id);
+        const { error } = await supabase.from('transactions').delete().eq('id', id);
+        if (error) console.error('Error deleting transaction:', error);
     };
 
     const syncExpense = async (expense) => {
         if (!import.meta.env.VITE_SUPABASE_URL) return;
-        await supabase.from('expenses').upsert(expense);
+        const { error } = await supabase.from('expenses').upsert(expense);
+        if (error) console.error('Error syncing expense:', error);
     };
 
     const deleteExpense = async (id) => {
         if (!import.meta.env.VITE_SUPABASE_URL) return;
-        await supabase.from('expenses').delete().eq('id', id);
+        const { error } = await supabase.from('expenses').delete().eq('id', id);
+        if (error) console.error('Error deleting expense:', error);
     };
 
     // We wrap dispatch to include Supabase syncing
