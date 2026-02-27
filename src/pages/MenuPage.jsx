@@ -118,9 +118,8 @@ export default function MenuPage() {
         if (method === 'cash') {
             setCashReceived('');
             setOrderStep('cash');
-        } else {
-            setQrisTimer(300);
-            setOrderStep('qris');
+        } else if (method === 'qris') {
+            processOrder('qris');
         }
     };
 
@@ -168,7 +167,7 @@ WA: ${order.customerPhone}
 ${order.items.map(i => `${i.name} x${i.qty} = ${formatRupiah(i.price * i.qty)}`).join('\n')}
 ------------------------------
 *TOTAL: ${formatRupiah(order.total)}*
-Bayar: ${order.paymentMethod === 'cash' ? 'Cash/Tunai (Belum Lunas - Bayar di Kasir)' : 'QRIS (Sudah Lunas ✓)'}
+Bayar: ${order.paymentMethod === 'cash' ? 'Cash/Tunai (Belum Lunas - Bayar di Kasir)' : 'QRIS (Belum Lunas - Bayar di Kasir)'}
 Catatan: ${order.notes || '-'}
 
 Terima kasih atas pesanannya! 🙏
@@ -342,12 +341,12 @@ Silakan tunjukkan pesan ini ke kasir jika Anda memilih bayar Cash.
                     {/* ===== SUCCESS ===== */}
                     {orderStep === 'success' && (
                         <div className="success-screen">
-                            <div className="success-icon">{lastOrder?.paymentMethod === 'qris' ? '🔥' : '⏳'}</div>
-                            <h2>{lastOrder?.paymentMethod === 'qris' ? 'Pesanan Sedang Dibuat!' : 'Pemesanan Berhasil!'}</h2>
+                            <div className="success-icon">{lastOrder?.paymentMethod === 'qris' ? '📱' : '⏳'}</div>
+                            <h2>Pemesanan Berhasil!</h2>
                             <p style={{ lineHeight: 1.6 }}>
                                 {lastOrder?.paymentMethod === 'qris'
-                                    ? 'Terima kasih! Pembayaran QRIS kamu telah kami terima. Pesanan kamu sedang diproses, silakan tunggu panggilan.'
-                                    : 'Terima kasih! Silakan tunjukkan layar ini atau sebutkan nama kamu ke kasir untuk proses pembayaran. Pesanan akan segera dibuat setelah pembayaran selesai.'
+                                    ? 'Terima kasih! Pesanan kamu berhasil dibuat. Silakan minta instruksi QRIS ke kasir & tunjukkan layar ini untuk proses pembayaran, dan pesanan akan segera dibuat.'
+                                    : 'Terima kasih! Silakan tunjukkan layar ini atau sebutkan nama kamu ke kasir untuk proses pembayaran tunai. Pesanan akan segera dibuat.'
                                 }
                             </p>
                             <button className="btn btn-primary" onClick={closeModal}>
@@ -475,7 +474,7 @@ Silakan tunjukkan pesan ini ke kasir jika Anda memilih bayar Cash.
                                     <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(108, 92, 231, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>📱</div>
                                     <div style={{ textAlign: 'left' }}>
                                         <div style={{ fontWeight: 600, fontSize: 16 }}>QRIS</div>
-                                        <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Scan QR dengan e-wallet / m-banking</div>
+                                        <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Pesan sekarang, bayar via QRIS di kasir</div>
                                     </div>
                                     <QrCode size={20} style={{ marginLeft: 'auto', color: 'var(--purple)' }} />
                                 </button>

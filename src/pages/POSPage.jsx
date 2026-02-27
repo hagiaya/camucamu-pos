@@ -113,6 +113,8 @@ export default function POSPage({ user }) {
             setQrisTimer(300);
             setQrisStatus('waiting');
             setStep('qris');
+        } else if (method === 'unpaid') {
+            processPayment('unpaid');
         }
     };
 
@@ -546,6 +548,41 @@ export default function POSPage({ user }) {
                                                         </div>
                                                     </div>
                                                     <QrCode size={20} style={{ marginLeft: 'auto', color: 'var(--purple)' }} />
+                                                </button>
+
+                                                <button
+                                                    onClick={() => selectPaymentMethod('unpaid')}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', gap: 14,
+                                                        padding: '16px 18px',
+                                                        background: 'var(--bg-card)',
+                                                        border: '1px solid var(--border)',
+                                                        borderRadius: 'var(--radius-md)',
+                                                        color: 'var(--text-primary)',
+                                                        cursor: 'pointer',
+                                                        transition: 'var(--transition)',
+                                                    }}
+                                                    onMouseOver={(e) => {
+                                                        e.currentTarget.style.borderColor = 'var(--coral)';
+                                                        e.currentTarget.style.background = 'rgba(255, 107, 107, 0.06)';
+                                                    }}
+                                                    onMouseOut={(e) => {
+                                                        e.currentTarget.style.borderColor = 'var(--border)';
+                                                        e.currentTarget.style.background = 'var(--bg-card)';
+                                                    }}
+                                                >
+                                                    <div style={{
+                                                        width: 48, height: 48, borderRadius: 12,
+                                                        background: 'rgba(255, 107, 107, 0.12)',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        fontSize: 24,
+                                                    }}>📝</div>
+                                                    <div style={{ textAlign: 'left' }}>
+                                                        <div style={{ fontWeight: 600, fontSize: 15 }}>Belum Bayar</div>
+                                                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                                                            Catat sebagai belum bayar untuk klien
+                                                        </div>
+                                                    </div>
                                                 </button>
                                             </div>
 

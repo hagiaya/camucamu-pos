@@ -194,9 +194,51 @@ Sampai ketemu! 🙏
         }
     };
 
+    const sendUnpaidWhatsApp = async (order) => {
+        const phone = formatPhoneForFonnte(order.customerPhone);
+        if (!phone) {
+            showToast('Tidak ada nomor WA pelanggan.', 'error');
+            return false;
+        }
+
+        const d = new Date(order.createdAt);
+        const dt = d.toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const message = `Halo Kak ${order.customerName},\nIni dari Camu Camu. Mau ngingetin pesanan Kakak tanggal ${dt} senilai Rp ${order.total.toLocaleString('id-ID')} statusnya belum dibayar ya.\n\nDitunggu pembayarannya di kasir. Terima kasih! 🙏`;
+
+        try {
+            const res = await fetch('https://api.fonnte.com/send', {
+                method: 'POST',
+                headers: {
+                    'Authorization': import.meta.env.VITE_FONNTE_TOKEN || 'zQe1WteVyRK7mVqNrpQT',
+                },
+                body: new URLSearchParams({
+                    'target': phone,
+                    'message': message,
+                })
+            });
+            const data = await res.json();
+            console.log('Fonnte Response (Unpaid):', data);
+            if (data.status) {
+                showToast('Tagihan WA terkirim! ✅');
+                return true;
+            } else {
+                showToast('Fonnte Error: ' + (data.reason || 'Cek kuota/WA'), 'error');
+                return false;
+            }
+        } catch (err) {
+            console.error('Failed to send WhatsApp notification:', err);
+            showToast('Gagal kirim WA. Cek koneksi.', 'error');
+            return false;
+        }
+    };
+
+    const totalExpensesCost = (state.expenses || []).reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
+    const todayExpenses = (state.expenses || []).filter(e => e.date === new Date().toISOString().split('T')[0])
+        .reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
+
     const totalOrders = (state.transactions || []).length;
     const totalRevenue = (state.transactions || []).reduce((s, t) => s + t.total, 0);
-    const totalProfit = (state.transactions || []).reduce((s, t) => s + (t.profit || 0), 0);
+    const totalProfit = (state.transactions || []).reduce((s, t) => s + (t.profit || 0), 0) - totalExpensesCost;
     const totalProducts = (state.products || []).length;
 
     const todayOrders = (state.transactions || []).filter(t => {
@@ -205,7 +247,7 @@ Sampai ketemu! 🙏
         return d.toDateString() === now.toDateString();
     });
     const todayRevenue = todayOrders.reduce((s, t) => s + t.total, 0);
-    const todayProfit = todayOrders.reduce((s, t) => s + (t.profit || 0), 0);
+    const todayProfit = todayOrders.reduce((s, t) => s + (t.profit || 0), 0) - todayExpenses;
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'pos', label: 'POS (Kasir)', icon: ShoppingCart },
@@ -532,7 +574,7 @@ Sampai ketemu! 🙏
                 {activeTab === 'products' && <ProductsPage />}
 
                 {/* ===== TRANSACTIONS TAB ===== */}
-                {activeTab === 'transactions' && <TransactionsManagement onSendWA={sendOrderReadyWhatsApp} role={user.role} />}
+                {activeTab === 'transactions' && <TransactionsManagement onSendWA={sendOrderReadyWhatsApp} onSendUnpaidWA={sendUnpaidWhatsApp} role={user.role} />}
 
                 {/* ===== CALCULATOR TAB ===== */}
                 {activeTab === 'calculator' && <CalculatorPage />}
@@ -612,7 +654,7 @@ function QuickAction({ icon, label, desc, onClick, color }) {
 }
 
 // Transactions Management Component
-function TransactionsManagement({ onSendWA, role }) {
+function TransactionsManagement({ onSendWA, onSendUnpaidWA, role }) {
     const { state, dispatch } = useApp();
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -808,6 +850,25 @@ function TransactionsManagement({ onSendWA, role }) {
                                                 <CheckCircle size={14} /> Kabari Siap (WA)
                                             </button>
                                         )}
+                                        {txn.status !== 'done' && (
+                                            <button
+                                                onClick={() => onSendUnpaidWA(txn)}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    background: 'var(--coral)',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: 8,
+                                                    fontSize: 12,
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 6
+                                                }}
+                                            >
+                                                Belum Bayar (WA)
+                                            </button>
+                                        )}
                                         {txn.status === 'ready' && (
                                             <>
                                                 <button
@@ -852,8 +913,8 @@ function TransactionsManagement({ onSendWA, role }) {
                             </tr>
                         ))}
                     </tbody>
-                </table>
-            </div>
-        </div>
+                </table >
+            </div >
+        </div >
     );
 }
