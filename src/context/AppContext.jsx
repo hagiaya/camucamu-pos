@@ -583,7 +583,9 @@ export function AppProvider({ children }) {
                     break;
                 }
                 case 'UPDATE_ORDER_STATUS':
-                    await syncTransaction({ id: action.payload.id, status: action.payload.status });
+                    if (import.meta.env.VITE_SUPABASE_URL) {
+                        await supabase.from('transactions').update({ status: action.payload.status }).eq('id', action.payload.id);
+                    }
                     break;
                 case 'DELETE_EXPENSE':
                     await deleteExpense(action.payload);
