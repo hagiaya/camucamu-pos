@@ -114,8 +114,8 @@ function appReducer(state, action) {
         // ============ PRODUCT MANAGEMENT ============
         case 'ADD_PRODUCT': {
             const newProduct = {
+                id: String(Date.now()), // default ID
                 ...action.payload,
-                id: Date.now(),
             };
             return {
                 ...state,
@@ -347,7 +347,12 @@ export function AppProvider({ children }) {
 
     const syncProduct = async (product) => {
         if (!import.meta.env.VITE_SUPABASE_URL) return;
-        await supabase.from('products').upsert(product);
+
+        // Strip out 'stock' property because it doesn't exist in the database schema
+        const { stock, ...productToSync } = product;
+        productToSync.id = String(productToSync.id); // Ensure id is string
+
+        await supabase.from('products').upsert(productToSync);
     };
 
     const deleteProduct = async (id) => {

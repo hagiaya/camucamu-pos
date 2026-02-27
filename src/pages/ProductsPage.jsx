@@ -114,7 +114,8 @@ export default function ProductsPage() {
             });
             showToast(`${form.name} berhasil diupdate!`);
         } else {
-            dispatch({ type: 'ADD_PRODUCT', payload: productData });
+            const newId = String(Date.now());
+            dispatch({ type: 'ADD_PRODUCT', payload: { ...productData, id: newId } });
             showToast(`${form.name} berhasil ditambahkan!`);
         }
 
