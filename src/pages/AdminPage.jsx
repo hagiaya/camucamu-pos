@@ -248,6 +248,25 @@ Sampai ketemu! 🙏
     });
     const todayRevenue = todayOrders.reduce((s, t) => s + t.total, 0);
     const todayProfit = todayOrders.reduce((s, t) => s + (t.profit || 0), 0) - todayExpenses;
+
+    const currentMonthOrders = (state.transactions || []).filter(t => {
+        const d = new Date(t.createdAt);
+        const now = new Date();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const currentMonthExpenses = (state.expenses || []).filter(e => {
+        const d = new Date(e.date);
+        const now = new Date();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
+    const currentMonthProfit = currentMonthOrders.reduce((s, t) => s + (t.profit || 0), 0) - currentMonthExpenses;
+
+    const founderSplits = [
+        { name: 'Reza', share: 0.30, icon: '🧔' },
+        { name: 'Andris', share: 0.35, icon: '👨‍💻' },
+        { name: 'Lasulika', share: 0.35, icon: '👨‍💼' },
+    ];
+
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'pos', label: 'POS (Kasir)', icon: ShoppingCart },
@@ -461,6 +480,47 @@ Sampai ketemu! 🙏
                                     value={formatRupiah(totalProfit)}
                                     color="var(--green)"
                                 />
+                            </div>
+                        </div>
+
+                        {/* Founder Splits (Current Month) */}
+                        <div style={{ marginBottom: 32 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                                <h3 style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                    👥 Bagi Hasil Bulan Ini
+                                </h3>
+                                <span style={{ fontSize: 13, background: 'rgba(78, 205, 196, 0.1)', color: 'var(--teal)', padding: '4px 10px', borderRadius: 20, fontWeight: 600 }}>
+                                    Profit: {formatRupiah(currentMonthProfit)}
+                                </span>
+                            </div>
+                            <div style={{
+                                display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                                gap: 16,
+                            }}>
+                                {founderSplits.map(f => (
+                                    <div key={f.name} style={{
+                                        background: 'var(--bg-card)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: 'var(--radius-lg)',
+                                        padding: 16,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                                                {f.icon}
+                                            </div>
+                                            <div>
+                                                <div style={{ fontWeight: 600, fontSize: 14 }}>{f.name}</div>
+                                                <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{f.share * 100}%</div>
+                                            </div>
+                                        </div>
+                                        <div style={{ fontWeight: 700, color: 'var(--green)', fontSize: 16 }}>
+                                            {formatRupiah(Math.floor(currentMonthProfit * f.share))}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
 

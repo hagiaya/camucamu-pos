@@ -546,8 +546,29 @@ function FounderSection({ state, formatRupiah }) {
         });
     }, [state.transactions, period]);
 
-    const totalProfit = filteredTransactions.reduce((sum, t) => sum + (t.profit || 0), 0);
+    const filteredExpenses = useMemo(() => {
+        const exps = state.expenses || [];
+        const now = new Date();
+
+        return exps.filter(e => {
+            const date = new Date(e.date);
+            if (period === 'day') {
+                return date.toDateString() === now.toDateString();
+            } else if (period === 'week') {
+                const oneWeekAgo = new Date();
+                oneWeekAgo.setDate(now.getDate() - 7);
+                return date >= oneWeekAgo;
+            } else if (period === 'month') {
+                return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+            }
+            return true;
+        });
+    }, [state.expenses, period]);
+
+    const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
     const totalRevenue = filteredTransactions.reduce((sum, t) => sum + t.total, 0);
+    const rawProfit = filteredTransactions.reduce((sum, t) => sum + (t.profit || 0), 0);
+    const totalProfit = rawProfit - totalExpenses;
 
     const splits = [
         { name: 'Reza', share: 0.30, icon: '🧔' },
@@ -605,12 +626,19 @@ function FounderSection({ state, formatRupiah }) {
                     <div className="result-card teal">
                         <div className="result-icon">💰</div>
                         <div className="result-value">{formatRupiah(totalRevenue)}</div>
-                        <div className="result-label">Total Revenue ({period})</div>
+                        <div className="result-label">Total Revenue</div>
+                    </div>
+                    <div className="result-card coral">
+                        <div className="result-icon">💸</div>
+                        <div className="result-value">-{formatRupiah(totalExpenses)}</div>
+                        <div className="result-label">Total Pengeluaran</div>
                     </div>
                     <div className="result-card green">
                         <div className="result-icon">🎉</div>
-                        <div className="result-value">{formatRupiah(totalProfit)}</div>
-                        <div className="result-label">Total Laba Bersih ({period})</div>
+                        <div className="result-value" style={{ color: totalProfit < 0 ? 'var(--coral)' : 'inherit' }}>
+                            {formatRupiah(totalProfit)}
+                        </div>
+                        <div className="result-label">Net Profit (Sisa Dibagi)</div>
                     </div>
                 </div>
 
