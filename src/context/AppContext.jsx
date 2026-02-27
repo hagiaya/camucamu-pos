@@ -348,9 +348,8 @@ export function AppProvider({ children }) {
     const syncProduct = async (product) => {
         if (!import.meta.env.VITE_SUPABASE_URL) return;
 
-        // Strip out 'stock' property because it doesn't exist in the database schema
-        const { stock, ...productToSync } = product;
-        productToSync.id = String(productToSync.id); // Ensure id is string
+        // Ensure id is a string, and include all properties (including stock)
+        const productToSync = { ...product, id: String(product.id) };
 
         await supabase.from('products').upsert(productToSync);
     };
