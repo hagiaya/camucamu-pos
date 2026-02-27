@@ -41,6 +41,16 @@ export default function POSPage({ user }) {
     const [isSendingWA, setIsSendingWA] = useState(false);
     const [showWAModal, setShowWAModal] = useState(false);
 
+    // Effect to load editing order data
+    useEffect(() => {
+        if (state.editingOrder) {
+            setCustomerName(state.editingOrder.customerName || '');
+            setCustomerPhone(state.editingOrder.customerPhone || '');
+            setOrderType(state.editingOrder.type || 'dine-in');
+            setPaymentMethod(state.editingOrder.paymentMethod || 'cash');
+        }
+    }, [state.editingOrder]);
+
     const allProducts = state.products || [];
     const filtered = allProducts.filter((item) => {
         const matchCategory = activeCategory === 'all' || item.category === activeCategory;
@@ -120,6 +130,7 @@ export default function POSPage({ user }) {
 
     const processPayment = (method) => {
         const order = {
+            id: state.editingOrder ? state.editingOrder.id : `ORD-${Date.now()}`,
             items: [...state.cart],
             total,
             totalCost,
@@ -131,15 +142,19 @@ export default function POSPage({ user }) {
             cashReceived: method === 'cash' ? cashReceivedNum : null,
             change: method === 'cash' ? changeDue : null,
             cashierName: user?.username || 'Admin',
+            status: state.editingOrder ? state.editingOrder.status : 'completed',
+            createdAt: state.editingOrder ? state.editingOrder.createdAt : new Date().toISOString(),
         };
 
-        dispatch({ type: 'ADD_ORDER', payload: order });
+        if (state.editingOrder) {
+            dispatch({ type: 'UPDATE_ORDER', payload: order });
+            showToast('Pesanan berhasil diperbarui! 🎉');
+        } else {
+            dispatch({ type: 'ADD_ORDER', payload: order });
+            showToast('Pembayaran berhasil! 🎉');
+        }
 
-        setLastOrder({
-            id: `ORD-${Date.now()}`,
-            ...order,
-            createdAt: new Date().toISOString(),
-        });
+        setLastOrder(order);
 
         clearInterval(timerRef.current);
         setStep('receipt');
@@ -158,6 +173,10 @@ export default function POSPage({ user }) {
         setCashReceived('');
         setQrisStatus('waiting');
         setQrisTimer(300);
+        if (state.editingOrder) {
+            dispatch({ type: 'SET_EDIT_ORDER', payload: null });
+            dispatch({ type: 'CLEAR_CART' });
+        }
     };
 
     const formatTime = (seconds) => {
@@ -177,9 +196,35 @@ export default function POSPage({ user }) {
                 {/* Left: Menu Section */}
                 <div className="pos-menu-section">
                     <div style={{ marginBottom: 16 }}>
-                        <h2 style={{ fontSize: 22, fontWeight: 700 }}>💳 Point of Sale</h2>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <h2 style={{ fontSize: 22, fontWeight: 700 }}>💳 Point of Sale</h2>
+                            {state.editingOrder && (
+                                <button
+                                    onClick={() => {
+                                        if (confirm('Batal edit pesanan ini?')) {
+                                            dispatch({ type: 'SET_EDIT_ORDER', payload: null });
+                                            dispatch({ type: 'CLEAR_CART' });
+                                            setCustomerName('');
+                                            setCustomerPhone('');
+                                        }
+                                    }}
+                                    style={{
+                                        padding: '6px 12px',
+                                        background: 'rgba(255, 107, 107, 0.1)',
+                                        color: 'var(--coral)',
+                                        border: '1px solid var(--coral)',
+                                        borderRadius: 8,
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Batal Edit
+                                </button>
+                            )}
+                        </div>
                         <p style={{ color: 'var(--text-tertiary)', fontSize: 14 }}>
-                            Pilih menu dan proses pembayaran
+                            {state.editingOrder ? `Sedang mengedit pesanan: ${state.editingOrder.id}` : 'Pilih menu dan proses pembayaran'}
                         </p>
                     </div>
 

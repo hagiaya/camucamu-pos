@@ -594,7 +594,7 @@ Sampai ketemu! 🙏
                 {activeTab === 'products' && <ProductsPage />}
 
                 {/* ===== TRANSACTIONS TAB ===== */}
-                {activeTab === 'transactions' && <TransactionsManagement onSendWA={sendOrderReadyWhatsApp} onSendUnpaidWA={sendUnpaidWhatsApp} role={user.role} />}
+                {activeTab === 'transactions' && <TransactionsManagement onSendWA={sendOrderReadyWhatsApp} onSendUnpaidWA={sendUnpaidWhatsApp} role={user.role} setActiveTab={setActiveTab} />}
 
                 {/* ===== CALCULATOR TAB ===== */}
                 {activeTab === 'calculator' && <CalculatorPage />}
@@ -674,7 +674,7 @@ function QuickAction({ icon, label, desc, onClick, color }) {
 }
 
 // Transactions Management Component
-function TransactionsManagement({ onSendWA, onSendUnpaidWA, role }) {
+function TransactionsManagement({ onSendWA, onSendUnpaidWA, role, setActiveTab }) {
     const { state, dispatch } = useApp();
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -868,6 +868,30 @@ function TransactionsManagement({ onSendWA, onSendUnpaidWA, role }) {
                                                 }}
                                             >
                                                 <CheckCircle size={14} /> Kabari Siap (WA)
+                                            </button>
+                                        )}
+                                        {(txn.status === 'new' || txn.status === 'completed' || !txn.status) && (
+                                            <button
+                                                onClick={() => {
+                                                    dispatch({ type: 'SET_CART', payload: txn.items });
+                                                    dispatch({ type: 'SET_EDIT_ORDER', payload: txn });
+                                                    setActiveTab('pos');
+                                                }}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    background: 'var(--purple)',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: 8,
+                                                    fontSize: 12,
+                                                    fontWeight: 600,
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 6
+                                                }}
+                                            >
+                                                ✏️ Edit Pesanan
                                             </button>
                                         )}
                                         {txn.status !== 'done' && (

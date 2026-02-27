@@ -11,6 +11,7 @@ const initialState = {
     transactions: [],
     products: [], // custom/editable product list
     expenses: [], // daily expenses
+    editingOrder: null, // Order currently being edited
 };
 
 
@@ -52,6 +53,7 @@ const loadState = () => {
                 ...initialState,
                 ...parsed,
                 products: syncedProducts,
+                editingOrder: null,
             };
         }
     } catch (e) {
@@ -62,7 +64,8 @@ const loadState = () => {
         products: defaultMenuItems.map(p => ({
             ...p,
             stock: p.stock !== undefined ? p.stock : 100
-        }))
+        })),
+        editingOrder: null,
     };
 };
 
@@ -110,6 +113,12 @@ function appReducer(state, action) {
 
         case 'CLEAR_CART':
             return { ...state, cart: [] };
+
+        case 'SET_CART':
+            return { ...state, cart: action.payload };
+
+        case 'SET_EDIT_ORDER':
+            return { ...state, editingOrder: action.payload };
 
         // ============ PRODUCT MANAGEMENT ============
         case 'ADD_PRODUCT': {
@@ -181,6 +190,43 @@ function appReducer(state, action) {
                 transactions: [order, ...state.transactions],
                 products: updatedProducts,
                 cart: [],
+            };
+        }
+
+        case 'UPDATE_ORDER': {
+            const index = state.transactions.findIndex(t => t.id === action.payload.id);
+            if (index === -1) return state;
+            const oldOrder = state.transactions[index];
+
+            // Calculate stock difference: Add back old items, then subtract new items
+            let tempProducts = [...state.products];
+
+            // Revert old items stock
+            oldOrder.items.forEach(oldItem => {
+                const baseId = String(oldItem.id).split('-')[0];
+                const pIdx = tempProducts.findIndex(p => String(p.id) === baseId);
+                if (pIdx !== -1) {
+                    tempProducts[pIdx] = { ...tempProducts[pIdx], stock: (tempProducts[pIdx].stock || 0) + oldItem.qty };
+                }
+            });
+
+            // Apply new items stock
+            const newOrder = action.payload;
+            newOrder.items.forEach(newItem => {
+                const baseId = String(newItem.id).split('-')[0];
+                const pIdx = tempProducts.findIndex(p => String(p.id) === baseId);
+                if (pIdx !== -1) {
+                    tempProducts[pIdx] = { ...tempProducts[pIdx], stock: Math.max(0, (tempProducts[pIdx].stock || 0) - newItem.qty) };
+                }
+            });
+
+            return {
+                ...state,
+                orders: state.orders.map(o => o.id === newOrder.id ? newOrder : o),
+                transactions: state.transactions.map(t => t.id === newOrder.id ? newOrder : t),
+                products: tempProducts,
+                cart: [],
+                editingOrder: null,
             };
         }
 
@@ -428,6 +474,9 @@ export function AppProvider({ children }) {
                     break;
                 case 'UPDATE_EXPENSE':
                     await syncExpense(action.payload);
+                    break;
+                case 'UPDATE_ORDER':
+                    await syncTransaction(action.payload);
                     break;
                 case 'UPDATE_ORDER_STATUS':
                     await syncTransaction({ id: action.payload.id, status: action.payload.status });
