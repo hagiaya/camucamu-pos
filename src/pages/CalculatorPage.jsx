@@ -565,7 +565,7 @@ function FounderSection({ state, formatRupiah }) {
         });
     }, [state.expenses, period]);
 
-    const totalExpenses = filteredExpenses.filter(e => e.fundSource !== 'Modal Awal').reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
+    const totalExpenses = filteredExpenses.filter(e => e.type !== 'capital').reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
     const totalRevenue = filteredTransactions.reduce((sum, t) => sum + t.total, 0);
     const rawProfit = filteredTransactions.reduce((sum, t) => sum + (t.profit || 0), 0);
     const totalProfit = rawProfit - totalExpenses;

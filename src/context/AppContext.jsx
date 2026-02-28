@@ -170,7 +170,7 @@ function appReducer(state, action) {
                 cashReceived: action.payload.cashReceived || null,
                 change: action.payload.change || null,
                 type: action.payload.type || 'dine-in',
-                status: 'completed',
+                status: action.payload.status || 'proses',
                 cashierName: action.payload.cashierName || null,
                 createdAt: new Date().toISOString(),
             };
@@ -269,7 +269,7 @@ function appReducer(state, action) {
                 cashReceived: action.payload.cashReceived || null,
                 change: action.payload.change || null,
                 type: 'online',
-                status: 'completed',
+                status: action.payload.status || 'proses',
                 cashierName: action.payload.cashierName || 'System',
                 createdAt: new Date().toISOString(),
             };
@@ -483,7 +483,7 @@ export function AppProvider({ children }) {
                         cashReceived: action.payload.cashReceived || null,
                         change: action.payload.change || null,
                         type: action.payload.type || 'dine-in',
-                        status: 'completed',
+                        status: action.payload.status || 'proses',
                         cashierName: action.payload.cashierName || null,
                         createdAt: action.payload.createdAt || new Date().toISOString(),
                     };
@@ -504,7 +504,7 @@ export function AppProvider({ children }) {
                         id: onlineOrderIdToSync,
                         ...action.payload,
                         type: 'online',
-                        status: 'completed',
+                        status: action.payload.status || 'proses',
                         createdAt: action.payload.createdAt || new Date().toISOString(),
                     };
                     await syncTransaction(onlineOrderSync);

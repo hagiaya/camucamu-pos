@@ -143,7 +143,7 @@ export default function POSPage({ user }) {
             cashReceived: method === 'cash' ? cashReceivedNum : null,
             change: method === 'cash' ? changeDue : null,
             cashierName: user?.username || (state.editingOrder?.cashierName || 'Admin'),
-            status: state.editingOrder ? state.editingOrder.status : 'completed',
+            status: state.editingOrder ? state.editingOrder.status : 'proses',
             createdAt: state.editingOrder ? state.editingOrder.createdAt : new Date().toISOString(),
         };
 

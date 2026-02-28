@@ -26,17 +26,14 @@ export default function ExpensesPage() {
     const [deleteConfirm, setDeleteConfirm] = useState(null);
 
     const [form, setForm] = useState({
-        type: 'expense', // 'expense' or 'capital'
         title: '',
         amount: '',
         category: 'Operasional',
-        fundSource: 'Pendapatan',
         notes: '',
         date: new Date().toISOString().split('T')[0],
     });
 
     const categories = [
-        'Modal Awal',
         'Operasional',
         'Bahan Baku',
         'Gaji Karyawan',
@@ -55,18 +52,16 @@ export default function ExpensesPage() {
     });
 
     // Stats
-    const totalExpenses = expenses.reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
-    const todayExpenses = expenses.filter(e => e.date === new Date().toISOString().split('T')[0])
+    const totalExpenses = expenses.filter(e => e.type !== 'capital').reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
+    const todayExpenses = expenses.filter(e => e.date === new Date().toISOString().split('T')[0] && e.type !== 'capital')
         .reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
-    const countExpenses = expenses.length;
+    const countExpenses = expenses.filter(e => e.type !== 'capital').length;
 
     const resetForm = () => {
         setForm({
-            type: 'expense',
             title: '',
             amount: '',
             category: 'Operasional',
-            fundSource: 'Pendapatan',
             notes: '',
             date: new Date().toISOString().split('T')[0],
         });
@@ -80,11 +75,9 @@ export default function ExpensesPage() {
 
     const openEdit = (expense) => {
         setForm({
-            type: expense.type || 'expense',
             title: expense.title,
             amount: expense.amount.toString(),
             category: expense.category,
-            fundSource: expense.fundSource || 'Pendapatan',
             notes: expense.notes || '',
             date: expense.date,
         });
@@ -102,11 +95,11 @@ export default function ExpensesPage() {
         const expenseData = {
             id: editingExpense ? editingExpense.id : `EXP-${Date.now()}`,
             createdAt: editingExpense ? editingExpense.createdAt : new Date().toISOString(),
-            type: form.type,
+            type: 'expense', // Always expense now
             title: form.title,
             amount: parseInt(form.amount),
-            category: form.type === 'capital' ? 'Setor Modal' : form.category,
-            fundSource: form.type === 'capital' ? null : form.fundSource,
+            category: form.category,
+            fundSource: 'Pendapatan', // Always Pendapatan now
             notes: form.notes,
             date: form.date,
         };
@@ -157,26 +150,11 @@ export default function ExpensesPage() {
                         borderRadius: 'var(--radius-md)', padding: 16,
                     }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                            <Wallet size={16} style={{ color: 'var(--teal)' }} />
-                            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Total Modal Awal</span>
-                        </div>
-                        <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif", color: 'var(--teal)' }}>
-                            {formatRupiah(expenses.filter(e => e.type === 'capital').reduce((s, e) => s + parseInt(e.amount), 0))}
-                        </div>
-                    </div>
-                    <div style={{
-                        background: 'var(--bg-card)', border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-md)', padding: 16,
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                             <BarChart3 size={16} style={{ color: 'var(--yellow)' }} />
-                            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Sisa Modal Unspent</span>
+                            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Total Pengeluaran</span>
                         </div>
                         <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
-                            {formatRupiah(
-                                expenses.filter(e => e.type === 'capital').reduce((s, e) => s + parseInt(e.amount), 0) -
-                                expenses.filter(e => e.type !== 'capital' && e.fundSource === 'Modal Awal').reduce((s, e) => s + parseInt(e.amount), 0)
-                            )}
+                            {formatRupiah(totalExpenses)}
                         </div>
                     </div>
                     <div style={{
@@ -191,18 +169,7 @@ export default function ExpensesPage() {
                             {formatRupiah(todayExpenses)}
                         </div>
                     </div>
-                    <div style={{
-                        background: 'var(--bg-card)', border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-md)', padding: 16,
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                            <BarChart3 size={16} style={{ color: 'var(--yellow)' }} />
-                            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Total Pengeluaran</span>
-                        </div>
-                        <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
-                            {formatRupiah(totalExpenses)}
-                        </div>
-                    </div>
+
                     <div style={{
                         background: 'var(--bg-card)', border: '1px solid var(--border)',
                         borderRadius: 'var(--radius-md)', padding: 16,
@@ -263,7 +230,7 @@ export default function ExpensesPage() {
                             <div style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}>Belum ada pengeluaran dicatat</div>
                         </div>
                     ) : (
-                        filtered.map((expense) => {
+                        filtered.filter(e => e.type !== 'capital').map((expense) => {
                             return (
                                 <div key={expense.id} style={{
                                     display: 'grid',
@@ -296,20 +263,15 @@ export default function ExpensesPage() {
                                         <span style={{
                                             fontSize: 11, padding: '4px 10px',
                                             borderRadius: 20,
-                                            background: expense.type === 'capital' ? 'rgba(78, 205, 196, 0.1)' : 'var(--bg-surface)',
-                                            border: expense.type === 'capital' ? '1px solid rgba(78, 205, 196, 0.2)' : '1px solid var(--border)',
-                                            color: expense.type === 'capital' ? 'var(--teal)' : 'var(--text-secondary)',
+                                            background: 'var(--bg-surface)',
+                                            border: '1px solid var(--border)',
+                                            color: 'var(--text-secondary)',
                                             fontWeight: 600,
-                                        }}>{expense.type === 'capital' ? 'Suntikan Modal' : expense.category}</span>
-                                        {expense.type !== 'capital' && (
-                                            <div style={{ marginTop: 6, fontSize: 10, color: expense.fundSource === 'Modal Awal' ? 'var(--coral)' : 'var(--teal)' }}>
-                                                Dana: {expense.fundSource || 'Pendapatan'}
-                                            </div>
-                                        )}
+                                        }}>{expense.category}</span>
                                     </div>
 
-                                    <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 16, color: expense.type === 'capital' ? 'var(--teal)' : 'var(--coral)' }}>
-                                        {expense.type === 'capital' ? '+' : ''}{formatRupiah(expense.amount)}
+                                    <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 16, color: 'var(--coral)' }}>
+                                        {formatRupiah(expense.amount)}
                                     </div>
 
                                     <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
@@ -351,48 +313,22 @@ export default function ExpensesPage() {
                     </div>
 
                     <form onSubmit={handleSave}>
-                        <div className="form-group" style={{ marginBottom: 16 }}>
-                            <label>Jenis Catatan</label>
-                            <div style={{ display: 'flex', gap: 12 }}>
-                                <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '12px', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', background: form.type === 'expense' ? 'rgba(255, 107, 107, 0.1)' : 'var(--bg-card)', borderColor: form.type === 'expense' ? 'var(--coral)' : 'var(--border)' }}>
-                                    <input type="radio" name="type" value="expense" checked={form.type === 'expense'} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ margin: 0 }} />
-                                    <span style={{ fontSize: 14, fontWeight: 600, color: form.type === 'expense' ? 'var(--coral)' : 'var(--text-primary)' }}>💸 Pengeluaran</span>
-                                </label>
-                                <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '12px', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', background: form.type === 'capital' ? 'rgba(78, 205, 196, 0.1)' : 'var(--bg-card)', borderColor: form.type === 'capital' ? 'var(--teal)' : 'var(--border)' }}>
-                                    <input type="radio" name="type" value="capital" checked={form.type === 'capital'} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ margin: 0 }} />
-                                    <span style={{ fontSize: 14, fontWeight: 600, color: form.type === 'capital' ? 'var(--teal)' : 'var(--text-primary)' }}>💰 Modal Awal</span>
-                                </label>
-                            </div>
-                        </div>
-
                         <div className="form-group">
-                            <label>{form.type === 'capital' ? 'Keterangan Modal *' : 'Judul Pengeluaran *'}</label>
-                            <input className="form-input" type="text" placeholder={form.type === 'capital' ? "Contoh: Setor Modal Pertama Reza" : "Contoh: Belanja Buah Naga"}
+                            <label>Judul Pengeluaran *</label>
+                            <input className="form-input" type="text" placeholder="Contoh: Belanja Buah Naga"
                                 value={form.title} required
                                 onChange={(e) => setForm({ ...form, title: e.target.value })} />
                         </div>
 
-                        {form.type === 'expense' && (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                                <div className="form-group">
-                                    <label>Kategori</label>
-                                    <select className="form-select" value={form.category}
-                                        onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                                        {categories.map((cat) => (
-                                            <option key={cat} value={cat}>{cat}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label>Sumber Dana</label>
-                                    <select className="form-select" value={form.fundSource}
-                                        onChange={(e) => setForm({ ...form, fundSource: e.target.value })}>
-                                        <option value="Pendapatan">Pendapatan / Omset</option>
-                                        <option value="Modal Awal">Modal Awal</option>
-                                    </select>
-                                </div>
-                            </div>
-                        )}
+                        <div className="form-group">
+                            <label>Kategori</label>
+                            <select className="form-select" value={form.category}
+                                onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                                {categories.map((cat) => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </select>
+                        </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                             <div className="form-group">

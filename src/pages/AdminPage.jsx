@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -112,8 +112,7 @@ function LoginPage({ onLogin }) {
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const [showCapitalModal, setShowCapitalModal] = useState(false);
-    const [capitalForm, setCapitalForm] = useState({ amount: '', notes: '' });
+    const [dashboardPeriod, setDashboardPeriod] = useState('day');
     const [user, setUser] = useState(() => {
         const saved = localStorage.getItem('camucamu_admin');
         return saved ? JSON.parse(saved) : null;
@@ -152,80 +151,96 @@ export default function AdminPage() {
         return <LoginPage onLogin={handleLogin} />;
     }
 
-    const sendOrderReadyWhatsApp = async (order) => {
-        let phone = (order.customerPhone || '').replace(/\D/g, '');
-        if (!phone) {
-            showToast('Tidak ada nomor WA pelanggan.', 'error');
-            return false;
-        }
-        if (phone.startsWith('0')) {
-            phone = '62' + phone.substring(1);
-        }
 
-        const message = `*PESANAN SIAP DIJEMPUT!* 🍈
-------------------------------
-Halo Kak ${order.customerName},
-Pesanan Kakak dengan ID: *${order.id}* sudah siap dan bisa dijemput di outlet *Camu Camu*.
 
-Silakan datang dan tunjukkan pesan ini ke tim kami ya. 
-Sampai ketemu! 🙏
-------------------------------`;
-
-        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-        window.open(url, '_blank');
-        return true;
+    const getBusinessDate = (dateOb) => {
+        const d = new Date(dateOb);
+        if (isNaN(d.getTime())) return new Date();
+        d.setHours(d.getHours() - 5);
+        return d;
     };
 
-    const sendUnpaidWhatsApp = async (order) => {
-        let phone = (order.customerPhone || '').replace(/\D/g, '');
-        if (!phone) {
-            showToast('Tidak ada nomor WA pelanggan.', 'error');
-            return false;
-        }
-        if (phone.startsWith('0')) {
-            phone = '62' + phone.substring(1);
-        }
-
-        const d = new Date(order.createdAt);
-        const dt = d.toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-        const message = `Halo Kak ${order.customerName},\nIni dari Camu Camu. Mau ngingetin pesanan Kakak tanggal ${dt} senilai Rp ${order.total.toLocaleString('id-ID')} statusnya belum dibayar ya.\n\nDitunggu pembayarannya di kasir. Terima kasih! 🙏`;
-
-        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-        window.open(url, '_blank');
-        return true;
+    const getBusinessDateString = (dateOb) => {
+        return getBusinessDate(dateOb).toDateString();
     };
 
-    const totalExpensesCost = (state.expenses || []).filter(e => e.fundSource !== 'Modal Awal' && e.type !== 'capital').reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
-    const todayExpenses = (state.expenses || []).filter(e => e.date === new Date().toISOString().split('T')[0] && e.fundSource !== 'Modal Awal' && e.type !== 'capital')
-        .reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
+    const dashboardStats = useMemo(() => {
+        const nowBusiness = getBusinessDate(new Date());
 
-    const totalModalAwal = (state.expenses || []).filter(e => e.type === 'capital').reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
-    const sisaModalAwal = totalModalAwal - (state.expenses || []).filter(e => e.type !== 'capital' && e.fundSource === 'Modal Awal').reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
+        const isMatchPeriod = (dateOb) => {
+            const d = getBusinessDate(dateOb);
+            if (dashboardPeriod === 'day') {
+                return d.toDateString() === nowBusiness.toDateString();
+            } else if (dashboardPeriod === 'week') {
+                const oneWeekAgo = new Date(nowBusiness);
+                oneWeekAgo.setDate(nowBusiness.getDate() - 7);
+                return d >= oneWeekAgo;
+            } else if (dashboardPeriod === 'month') {
+                return d.getMonth() === nowBusiness.getMonth() && d.getFullYear() === nowBusiness.getFullYear();
+            } else if (dashboardPeriod === 'year') {
+                return d.getFullYear() === nowBusiness.getFullYear();
+            }
+            return true;
+        };
 
+        const filteredOrders = (state.transactions || []).filter(t => isMatchPeriod(t.createdAt));
+        const filteredExpensesList = (state.expenses || []).filter(e => isMatchPeriod(e.createdAt || e.date) && e.type !== 'capital');
+
+        const expenses = filteredExpensesList.reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
+        const revenue = filteredOrders.reduce((s, t) => s + (t.total || 0), 0);
+        const cost = filteredOrders.reduce((s, t) => s + (t.totalCost || 0), 0) - expenses;
+        const profit = filteredOrders.reduce((s, t) => s + (t.profit || 0), 0);
+
+        const chartMap = {};
+
+        if (dashboardPeriod === 'day') {
+            filteredOrders.forEach((t) => {
+                const h = new Date(t.createdAt).getHours().toString().padStart(2, '0') + ':00';
+                if (!chartMap[h]) chartMap[h] = { revenue: 0, profit: 0 };
+                chartMap[h].revenue += t.total;
+                chartMap[h].profit += t.profit || 0;
+            });
+        } else if (dashboardPeriod === 'week' || dashboardPeriod === 'month') {
+            filteredOrders.forEach((t) => {
+                const d = getBusinessDate(t.createdAt);
+                const key = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                if (!chartMap[key]) chartMap[key] = { revenue: 0, profit: 0 };
+                chartMap[key].revenue += t.total;
+                chartMap[key].profit += t.profit || 0;
+            });
+        } else if (dashboardPeriod === 'year') {
+            filteredOrders.forEach((t) => {
+                const d = getBusinessDate(t.createdAt);
+                const key = d.toLocaleDateString('id-ID', { month: 'short' });
+                if (!chartMap[key]) chartMap[key] = { revenue: 0, profit: 0 };
+                chartMap[key].revenue += t.total;
+                chartMap[key].profit += t.profit || 0;
+            });
+        }
+
+        const chartDataArray = Object.entries(chartMap).map(([label, data]) => ({ label, ...data }));
+        const maxRev = Math.max(...chartDataArray.map((d) => d.revenue), 1);
+
+        return { revenue, expenses, cost, profit, chartData: chartDataArray, maxRev };
+    }, [state.transactions, state.expenses, dashboardPeriod]);
+
+    const nowBusinessStr = getBusinessDateString(new Date());
+
+    const totalExpensesCost = (state.expenses || []).filter(e => e.type !== 'capital').reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
     const totalOrders = (state.transactions || []).length;
     const totalRevenue = (state.transactions || []).reduce((s, t) => s + t.total, 0);
-    const totalProfit = (state.transactions || []).reduce((s, t) => s + (t.profit || 0), 0) - totalExpensesCost;
+    const totalProfit = (state.transactions || []).reduce((s, t) => s + (t.profit || 0), 0);
     const totalProducts = (state.products || []).length;
 
-    const todayOrders = (state.transactions || []).filter(t => {
-        const d = new Date(t.createdAt);
-        const now = new Date();
-        return d.toDateString() === now.toDateString();
+    const todayOrders = (state.transactions || []).filter(t => getBusinessDateString(t.createdAt) === nowBusinessStr);
+    const todayExpensesList = (state.expenses || []).filter(e => {
+        const dateInput = e.createdAt || e.date;
+        return getBusinessDateString(dateInput) === nowBusinessStr && e.type !== 'capital';
     });
-    const todayRevenue = todayOrders.reduce((s, t) => s + t.total, 0);
-    const todayProfit = todayOrders.reduce((s, t) => s + (t.profit || 0), 0) - todayExpenses;
 
-    const currentMonthOrders = (state.transactions || []).filter(t => {
-        const d = new Date(t.createdAt);
-        const now = new Date();
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    });
-    const currentMonthExpenses = (state.expenses || []).filter(e => {
-        const d = new Date(e.date);
-        const now = new Date();
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && e.fundSource !== 'Modal Awal' && e.type !== 'capital';
-    }).reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
-    const currentMonthProfit = currentMonthOrders.reduce((s, t) => s + (t.profit || 0), 0) - currentMonthExpenses;
+    const todayExpenses = todayExpensesList.reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
+    const todayRevenue = todayOrders.reduce((s, t) => s + (t.total || 0), 0);
+    const todayProfit = todayOrders.reduce((s, t) => s + (t.profit || 0), 0);
 
     const founderSplits = [
         { name: 'Reza', share: 0.30, icon: '🧔' },
@@ -437,70 +452,119 @@ Sampai ketemu! 🙏
                                     value={totalOrders}
                                     color="var(--coral-light)"
                                 />
-                                <DashCard
-                                    icon="💰" label="Total Revenue"
-                                    value={formatRupiah(totalRevenue)}
-                                    color="var(--teal-light)"
-                                />
-                                <DashCard
-                                    icon={totalProfit >= 0 ? "🎉" : "⏳"}
-                                    label={totalProfit >= 0 ? "Total Profit" : "Sisa Balik Modal"}
-                                    value={formatRupiah(Math.abs(totalProfit))}
-                                    color={totalProfit >= 0 ? "var(--green)" : "var(--coral)"}
-                                />
                             </div>
                         </div>
 
-                        {/* Modal Awal Stats */}
+
+
+                        {/* Founder Splits Dashboard */}
                         <div style={{ marginBottom: 32 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                                <h3 style={{ fontSize: 14, margin: 0, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                    💎 Perputaran Modal Awal
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 16 }}>
+                                <h3 style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                    👥 Bagi Hasil & Laporan
                                 </h3>
-                                <button
-                                    onClick={() => setShowCapitalModal(true)}
-                                    style={{
-                                        padding: '6px 14px', background: 'rgba(78, 205, 196, 0.1)',
-                                        border: '1px solid rgba(78, 205, 196, 0.2)', borderRadius: 20,
-                                        color: 'var(--teal)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', gap: 6,
-                                    }}
-                                >
-                                    + Setor Modal
-                                </button>
+                                <div style={{
+                                    display: 'flex',
+                                    background: 'var(--bg-surface)',
+                                    padding: 4,
+                                    borderRadius: 12,
+                                    border: '1px solid var(--border)'
+                                }}>
+                                    {[
+                                        { id: 'day', label: 'Hari Ini' },
+                                        { id: 'week', label: '7 Hari' },
+                                        { id: 'month', label: 'Bulan Ini' },
+                                        { id: 'year', label: 'Tahun Ini' },
+                                    ].map((p) => (
+                                        <button
+                                            key={p.id}
+                                            onClick={() => setDashboardPeriod(p.id)}
+                                            style={{
+                                                padding: '6px 16px',
+                                                borderRadius: 10,
+                                                border: 'none',
+                                                background: dashboardPeriod === p.id ? 'var(--bg-card)' : 'transparent',
+                                                color: dashboardPeriod === p.id ? 'var(--coral)' : 'var(--text-secondary)',
+                                                cursor: 'pointer',
+                                                fontSize: 13,
+                                                fontWeight: dashboardPeriod === p.id ? 600 : 400,
+                                                boxShadow: dashboardPeriod === p.id ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            {p.label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                                <span style={{ fontSize: 13, background: dashboardStats.profit >= 0 ? 'rgba(78, 205, 196, 0.1)' : 'rgba(255, 107, 107, 0.1)', color: dashboardStats.profit >= 0 ? 'var(--teal)' : 'var(--coral)', padding: '4px 10px', borderRadius: 20, fontWeight: 600 }}>
+                                    {dashboardStats.profit >= 0 ? 'Profit Bersih:' : 'Sisa Balik Modal:'} {formatRupiah(Math.abs(dashboardStats.profit))}
+                                </span>
+                            </div>
+
+                            {/* Grafik */}
+                            {dashboardStats.chartData.length > 0 && (
+                                <div style={{
+                                    background: 'var(--bg-card)',
+                                    borderRadius: 'var(--radius-lg)',
+                                    padding: '24px',
+                                    marginBottom: 24,
+                                    border: '1px solid var(--border)'
+                                }}>
+                                    <h4 style={{ marginBottom: 16, fontSize: 14, color: 'var(--text-secondary)' }}>📈 Grafik Revenue</h4>
+                                    <div style={{ height: 180, display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                                        {dashboardStats.chartData.map((data) => (
+                                            <div key={data.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>
+                                                    {formatRupiah(data.revenue)}
+                                                </div>
+                                                <div
+                                                    style={{
+                                                        width: '100%',
+                                                        maxWidth: 40,
+                                                        background: 'linear-gradient(180deg, var(--teal), rgba(78, 205, 196, 0.2))',
+                                                        borderRadius: '4px 4px 0 0',
+                                                        height: `${(data.revenue / dashboardStats.maxRev) * 130}px`,
+                                                        minHeight: 4
+                                                    }}
+                                                />
+                                                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                                                    {data.label}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             <div style={{
                                 display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                                gap: 16,
+                                gap: 16, marginBottom: 24,
                             }}>
                                 <DashCard
-                                    icon="🏦" label="Total Modal Awal (Injected)"
-                                    value={formatRupiah(totalModalAwal)}
+                                    icon="💰" label="Total Pendapatan"
+                                    value={formatRupiah(dashboardStats.revenue)}
                                     color="var(--teal)"
                                 />
                                 <DashCard
-                                    icon="📉" label="Penggunaan Modal"
-                                    value={formatRupiah(totalModalAwal - sisaModalAwal)}
+                                    icon="💸" label="Total Pengeluaran"
+                                    value={formatRupiah(dashboardStats.expenses)}
                                     color="var(--coral)"
                                 />
                                 <DashCard
-                                    icon="💵" label="Sisa Dana Modal (Unspent)"
-                                    value={formatRupiah(sisaModalAwal)}
-                                    color="var(--green)"
+                                    icon="📦" label="Total Uang Modal (HPP)"
+                                    value={formatRupiah(dashboardStats.cost)}
+                                    color="var(--orange)"
+                                />
+                                <DashCard
+                                    icon={dashboardStats.profit >= 0 ? "🎉" : "⏳"} label="Total Uang Profit"
+                                    value={(dashboardStats.profit < 0 ? "-" : "") + formatRupiah(Math.abs(dashboardStats.profit))}
+                                    color={dashboardStats.profit >= 0 ? "var(--green)" : "var(--coral)"}
                                 />
                             </div>
-                        </div>
 
-                        {/* Founder Splits (Current Month) */}
-                        <div style={{ marginBottom: 32 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                                <h3 style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                    👥 Bagi Hasil Bulan Ini
-                                </h3>
-                                <span style={{ fontSize: 13, background: currentMonthProfit >= 0 ? 'rgba(78, 205, 196, 0.1)' : 'rgba(255, 107, 107, 0.1)', color: currentMonthProfit >= 0 ? 'var(--teal)' : 'var(--coral)', padding: '4px 10px', borderRadius: 20, fontWeight: 600 }}>
-                                    {currentMonthProfit >= 0 ? 'Profit:' : 'Sisa Balik Modal:'} {formatRupiah(Math.abs(currentMonthProfit))}
-                                </span>
-                            </div>
                             <div style={{
                                 display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
                                 gap: 16,
@@ -524,8 +588,8 @@ Sampai ketemu! 🙏
                                                 <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{f.share * 100}%</div>
                                             </div>
                                         </div>
-                                        <div style={{ fontWeight: 700, color: currentMonthProfit > 0 ? 'var(--green)' : 'var(--text-tertiary)', fontSize: 16 }}>
-                                            {currentMonthProfit > 0 ? formatRupiah(Math.floor(currentMonthProfit * f.share)) : 'Rp 0'}
+                                        <div style={{ fontWeight: 700, color: dashboardStats.profit > 0 ? 'var(--green)' : 'var(--text-tertiary)', fontSize: 16 }}>
+                                            {dashboardStats.profit > 0 ? formatRupiah(Math.floor(dashboardStats.profit * f.share)) : 'Rp 0'}
                                         </div>
                                     </div>
                                 ))}
@@ -598,86 +662,17 @@ Sampai ketemu! 🙏
                                             </div>
                                             <div style={{ textAlign: 'right' }}>
                                                 <div style={{ fontWeight: 700, fontSize: 15 }}>{formatRupiah(txn.total)}</div>
-                                                <div style={{ fontSize: 11, color: txn.status === 'ready' ? 'var(--teal)' : 'var(--green)', fontWeight: 600 }}>
-                                                    {txn.status === 'ready' ? 'SIAP DIAMBIL' : `+${formatRupiah(txn.profit || 0)}`}
+                                                <div style={{ fontSize: 11, color: txn.status === 'dibayar' ? 'var(--green)' : txn.status === 'diambil' ? 'var(--yellow)' : 'var(--coral)', fontWeight: 600 }}>
+                                                    {txn.status === 'dibayar' ? 'DIBAYAR' : txn.status === 'diambil' ? 'DIAMBIL' : 'PROSES'}
                                                 </div>
                                             </div>
-                                            {txn.status !== 'ready' && (
-                                                <button
-                                                    onClick={() => {
-                                                        dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: txn.id, status: 'ready' } });
-                                                        sendOrderReadyWhatsApp(txn);
-                                                    }}
-                                                    style={{
-                                                        marginLeft: 16,
-                                                        padding: '8px 12px',
-                                                        background: 'rgba(78, 205, 196, 0.1)',
-                                                        border: '1px solid rgba(78, 205, 196, 0.2)',
-                                                        borderRadius: 8,
-                                                        color: 'var(--teal)',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: 6,
-                                                        fontSize: 12,
-                                                        fontWeight: 600,
-                                                    }}
-                                                >
-                                                    <CheckCircle size={14} />
-                                                    Siap
-                                                </button>
-                                            )}
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         )}
 
-                        {/* Capital Modal */}
-                        <div className={`modal-overlay ${showCapitalModal ? 'open' : ''}`} onClick={() => setShowCapitalModal(false)}>
-                            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                                    <h2 style={{ margin: 0 }}>💰 Setor Modal Awal</h2>
-                                    <button className="btn btn-ghost btn-sm" onClick={() => setShowCapitalModal(false)}>
-                                        <X size={18} />
-                                    </button>
-                                </div>
-                                <form onSubmit={(e) => {
-                                    e.preventDefault();
-                                    dispatch({
-                                        type: 'ADD_EXPENSE',
-                                        payload: {
-                                            id: `EXP-${Date.now()}`,
-                                            type: 'capital',
-                                            title: 'Setor Modal Awal',
-                                            amount: parseInt(capitalForm.amount) || 0,
-                                            category: 'Setor Modal',
-                                            fundSource: null,
-                                            notes: capitalForm.notes,
-                                            date: new Date().toISOString().split('T')[0],
-                                            createdAt: new Date().toISOString(),
-                                        }
-                                    });
-                                    showToast('Modal awal berhasil ditambahkan!');
-                                    setShowCapitalModal(false);
-                                    setCapitalForm({ amount: '', notes: '' });
-                                }}>
-                                    <div className="form-group">
-                                        <label>Nominal Modal (Rp) *</label>
-                                        <input className="form-input" type="number" placeholder="Misal: 3000000" required min="1"
-                                            value={capitalForm.amount} onChange={(e) => setCapitalForm({ ...capitalForm, amount: e.target.value })} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Keterangan (Opsional)</label>
-                                        <input className="form-input" type="text" placeholder="Misal: Modal dari tabungan"
-                                            value={capitalForm.notes} onChange={(e) => setCapitalForm({ ...capitalForm, notes: e.target.value })} />
-                                    </div>
-                                    <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }}>
-                                        Simpan Modal
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
+
 
                     </div>
                 )}
@@ -689,7 +684,7 @@ Sampai ketemu! 🙏
                 {activeTab === 'products' && <ProductsPage />}
 
                 {/* ===== TRANSACTIONS TAB ===== */}
-                {activeTab === 'transactions' && <TransactionsManagement onSendWA={sendOrderReadyWhatsApp} onSendUnpaidWA={sendUnpaidWhatsApp} role={user.role} setActiveTab={setActiveTab} />}
+                {activeTab === 'transactions' && <TransactionsManagement role={user.role} setActiveTab={setActiveTab} />}
 
                 {/* ===== CALCULATOR TAB ===== */}
                 {activeTab === 'calculator' && <CalculatorPage />}
@@ -769,7 +764,7 @@ function QuickAction({ icon, label, desc, onClick, color }) {
 }
 
 // Transactions Management Component
-function TransactionsManagement({ onSendWA, onSendUnpaidWA, role, setActiveTab }) {
+function TransactionsManagement({ role, setActiveTab }) {
     const { state, dispatch } = useApp();
     const { showToast, ToastContainer: TMToastContainer } = useToast();
     const [search, setSearch] = useState('');
@@ -777,23 +772,24 @@ function TransactionsManagement({ onSendWA, onSendUnpaidWA, role, setActiveTab }
 
     const transactions = state.transactions || [];
 
+    const getStatusNormalized = (st) => {
+        if (!st || st === 'new') return 'proses';
+        if (st === 'ready') return 'diambil';
+        if (st === 'done' || st === 'completed') return 'dibayar';
+        return st;
+    };
+
     const filtered = transactions.filter(t => {
         const matchSearch = t.id.toLowerCase().includes(search.toLowerCase()) ||
             t.customerName.toLowerCase().includes(search.toLowerCase()) ||
             (t.customerPhone && t.customerPhone.includes(search));
-        const status = t.status || 'new';
-        const matchStatus = statusFilter === 'all' || status === statusFilter;
+        const s = getStatusNormalized(t.status);
+        const matchStatus = statusFilter === 'all' || s === statusFilter;
         return matchSearch && matchStatus;
     });
 
-    const handleUpdateStatus = async (txn, newStatus) => {
+    const handleUpdateStatus = (txn, newStatus) => {
         dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: txn.id, status: newStatus } });
-        if (newStatus === 'ready') {
-            const success = await onSendWA(txn);
-            if (success) {
-                // showToast is inside onSendWA or handled by caller if it was a component
-            }
-        }
     };
 
     return (
@@ -860,9 +856,9 @@ function TransactionsManagement({ onSendWA, onSendUnpaidWA, role, setActiveTab }
                         }}
                     >
                         <option value="all">Semua Status</option>
-                        <option value="new">Pesanan Baru</option>
-                        <option value="ready">Siap Diambil</option>
-                        <option value="done">Sudah Selesai</option>
+                        <option value="proses">Pesanan Proses</option>
+                        <option value="diambil">Pesanan Diambil</option>
+                        <option value="dibayar">Pesanan Dibayar</option>
                     </select>
                 </div>
             </div>
@@ -932,27 +928,47 @@ function TransactionsManagement({ onSendWA, onSendUnpaidWA, role, setActiveTab }
                                         fontSize: 11,
                                         fontWeight: 600,
                                         background:
-                                            txn.status === 'done' ? 'rgba(46, 204, 113, 0.1)' :
-                                                txn.status === 'ready' ? 'rgba(78, 205, 196, 0.1)' : 'rgba(0, 184, 148, 0.1)',
+                                            getStatusNormalized(txn.status) === 'dibayar' ? 'rgba(46, 204, 113, 0.1)' :
+                                                getStatusNormalized(txn.status) === 'diambil' ? 'rgba(253, 203, 110, 0.1)' : 'rgba(255, 107, 107, 0.1)',
                                         color:
-                                            txn.status === 'done' ? 'var(--green)' :
-                                                txn.status === 'ready' ? 'var(--teal)' : 'var(--green)',
-                                        border: `1px solid ${txn.status === 'done' ? 'rgba(46, 204, 113, 0.2)' :
-                                            txn.status === 'ready' ? 'rgba(78, 205, 196, 0.2)' : 'rgba(0, 184, 148, 0.2)'
+                                            getStatusNormalized(txn.status) === 'dibayar' ? 'var(--green)' :
+                                                getStatusNormalized(txn.status) === 'diambil' ? 'var(--yellow)' : 'var(--coral)',
+                                        border: `1px solid ${getStatusNormalized(txn.status) === 'dibayar' ? 'rgba(46, 204, 113, 0.2)' :
+                                            getStatusNormalized(txn.status) === 'diambil' ? 'rgba(253, 203, 110, 0.2)' : 'rgba(255, 107, 107, 0.2)'
                                             }`
                                     }}>
-                                        {txn.status === 'done' ? 'SELESAI' :
-                                            txn.status === 'ready' ? 'SIAP DIAMBIL' : 'PESANAN BARU'}
+                                        {getStatusNormalized(txn.status) === 'dibayar' ? 'PESANAN DIBAYAR' :
+                                            getStatusNormalized(txn.status) === 'diambil' ? 'PESANAN DIAMBIL' : 'PESANAN PROSES'}
                                     </span>
                                 </td>
                                 <td style={{ padding: '16px 20px' }}>
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        {(txn.status === 'new' || txn.status === 'completed' || !txn.status) && (
+                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                        {getStatusNormalized(txn.status) === 'proses' && (
                                             <button
-                                                onClick={() => handleUpdateStatus(txn, 'ready')}
+                                                onClick={() => handleUpdateStatus(txn, 'diambil')}
                                                 style={{
                                                     padding: '8px 12px',
-                                                    background: 'var(--teal)',
+                                                    background: 'var(--yellow)',
+                                                    color: '#000',
+                                                    border: 'none',
+                                                    borderRadius: 8,
+                                                    fontSize: 12,
+                                                    fontWeight: 600,
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 6
+                                                }}
+                                            >
+                                                <CheckCircle size={14} /> Diambil
+                                            </button>
+                                        )}
+                                        {getStatusNormalized(txn.status) === 'diambil' && (
+                                            <button
+                                                onClick={() => handleUpdateStatus(txn, 'dibayar')}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    background: 'var(--green)',
                                                     color: 'white',
                                                     border: 'none',
                                                     borderRadius: 8,
@@ -964,10 +980,10 @@ function TransactionsManagement({ onSendWA, onSendUnpaidWA, role, setActiveTab }
                                                     gap: 6
                                                 }}
                                             >
-                                                <CheckCircle size={14} /> Kabari Siap (WA)
+                                                <CheckCircle size={14} /> Dibayar
                                             </button>
                                         )}
-                                        {(txn.status === 'new' || txn.status === 'completed' || !txn.status) && (
+                                        {getStatusNormalized(txn.status) !== 'dibayar' && (
                                             <button
                                                 onClick={() => {
                                                     dispatch({ type: 'SET_CART', payload: txn.items });
@@ -988,66 +1004,11 @@ function TransactionsManagement({ onSendWA, onSendUnpaidWA, role, setActiveTab }
                                                     gap: 6
                                                 }}
                                             >
-                                                ✏️ Edit Pesanan
+                                                ✏️ Edit
                                             </button>
                                         )}
-                                        {txn.status !== 'done' && (
-                                            <button
-                                                onClick={() => onSendUnpaidWA(txn)}
-                                                style={{
-                                                    padding: '8px 12px',
-                                                    background: 'var(--coral)',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: 8,
-                                                    fontSize: 12,
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 6
-                                                }}
-                                            >
-                                                Belum Bayar (WA)
-                                            </button>
-                                        )}
-                                        {txn.status === 'ready' && (
-                                            <>
-                                                <button
-                                                    onClick={() => handleUpdateStatus(txn, 'done')}
-                                                    style={{
-                                                        padding: '8px 12px',
-                                                        background: 'var(--green)',
-                                                        color: 'white',
-                                                        border: 'none',
-                                                        borderRadius: 8,
-                                                        fontSize: 12,
-                                                        fontWeight: 600,
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: 6
-                                                    }}
-                                                >
-                                                    <CheckCircle size={14} /> Selesai / Diambil
-                                                </button>
-                                                <button
-                                                    onClick={() => onSendWA(txn)}
-                                                    title="Kirim ulang notifikasi WA"
-                                                    style={{
-                                                        padding: '8px',
-                                                        background: 'transparent',
-                                                        color: 'var(--text-tertiary)',
-                                                        border: '1px solid var(--border)',
-                                                        borderRadius: 8,
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    <RefreshCw size={14} />
-                                                </button>
-                                            </>
-                                        )}
-                                        {txn.status === 'done' && (
-                                            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Transaksi Selesai</span>
+                                        {getStatusNormalized(txn.status) === 'dibayar' && (
+                                            <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 600 }}>Transaksi Selesai</span>
                                         )}
                                         <button
                                             onClick={() => {
