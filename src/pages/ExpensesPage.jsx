@@ -51,10 +51,25 @@ export default function ExpensesPage() {
         return matchSearch;
     });
 
+    const getBusinessDate = (dateOb) => {
+        const d = new Date(dateOb);
+        if (isNaN(d.getTime())) return new Date();
+        d.setHours(d.getHours() - 5);
+        return d;
+    };
+
+    const getBusinessDateString = (dateOb) => {
+        return getBusinessDate(dateOb).toDateString();
+    };
+
+    const nowBusinessStr = getBusinessDateString(new Date());
+
     // Stats
     const totalExpenses = expenses.filter(e => e.type !== 'capital').reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
-    const todayExpenses = expenses.filter(e => e.date === new Date().toISOString().split('T')[0] && e.type !== 'capital')
-        .reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
+    const todayExpenses = expenses.filter(e => {
+        const dateInput = e.createdAt || e.date;
+        return getBusinessDateString(dateInput) === nowBusinessStr && e.type !== 'capital';
+    }).reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
     const countExpenses = expenses.filter(e => e.type !== 'capital').length;
 
     const resetForm = () => {
