@@ -421,7 +421,8 @@ export function AppProvider({ children }) {
 
     const syncTransaction = async (txn) => {
         if (!import.meta.env.VITE_SUPABASE_URL) return;
-        const { error } = await supabase.from('transactions').upsert(txn);
+        const { cashierName, ...dbPayload } = txn;
+        const { error } = await supabase.from('transactions').upsert(dbPayload);
         if (error) console.error('Error syncing transaction:', error);
     };
 
