@@ -159,23 +159,13 @@ function appReducer(state, action) {
         case 'ADD_ORDER': {
             const orderId = action.payload.id || `ORD-${Date.now()}`;
             const order = {
+                ...action.payload,
                 id: orderId,
-                items: [...state.cart],
-                total: state.cart.reduce((sum, item) => sum + item.price * item.qty, 0),
-                totalCost: state.cart.reduce((sum, item) => sum + item.cost * item.qty, 0),
-                profit: state.cart.reduce((sum, item) => sum + (item.price - item.cost) * item.qty, 0),
-                customerName: action.payload.customerName || 'Walk-in',
-                customerPhone: action.payload.customerPhone || '',
-                paymentMethod: action.payload.paymentMethod || 'cash',
-                cashReceived: action.payload.cashReceived || null,
-                change: action.payload.change || null,
-                type: action.payload.type || 'dine-in',
                 status: action.payload.status || 'proses',
-                cashierName: action.payload.cashierName || null,
-                createdAt: new Date().toISOString(),
+                createdAt: action.payload.createdAt || new Date().toISOString(),
             };
             const updatedProducts = state.products.map(p => {
-                const cartItem = state.cart.find(item => {
+                const cartItem = action.payload.items.find(item => {
                     const baseId = String(item.id).split('-')[0];
                     return baseId === p.id.toString() || baseId === p.id;
                 });
@@ -469,28 +459,17 @@ export function AppProvider({ children }) {
                     await deleteProduct(action.payload);
                     break;
                 case 'ADD_ORDER':
-                    // Need to construct the exact order object that the reducer created
                     const orderIdToSync = action.payload.id || `ORD-${Date.now()}`;
                     const newOrder = {
+                        ...action.payload,
                         id: orderIdToSync,
-                        items: state.cart,
-                        total: state.cart.reduce((sum, item) => sum + item.price * item.qty, 0),
-                        totalCost: state.cart.reduce((sum, item) => sum + item.cost * item.qty, 0),
-                        profit: state.cart.reduce((sum, item) => sum + (item.price - item.cost) * item.qty, 0),
-                        customerName: action.payload.customerName || 'Walk-in',
-                        customerPhone: action.payload.customerPhone || '',
-                        paymentMethod: action.payload.paymentMethod || 'cash',
-                        cashReceived: action.payload.cashReceived || null,
-                        change: action.payload.change || null,
-                        type: action.payload.type || 'dine-in',
                         status: action.payload.status || 'proses',
-                        cashierName: action.payload.cashierName || null,
                         createdAt: action.payload.createdAt || new Date().toISOString(),
                     };
                     await syncTransaction(newOrder);
 
                     // Sync product stock to Supabase
-                    for (const item of state.cart) {
+                    for (const item of action.payload.items) {
                         const baseId = String(item.id).split('-')[0];
                         const prod = state.products.find(p => String(p.id) === baseId);
                         if (prod) {
