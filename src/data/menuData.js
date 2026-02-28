@@ -44,7 +44,7 @@ export const menuItems = [
         id: 4,
         name: 'Banana Roll Coklat + Tiramisu + Strowbery',
         category: 'makanan',
-        price: 13000,
+        price: 12000,
         cost: 7500,
         description: 'Sensasi tiga rasa dalam satu porsi pisang gulung yang unik',
         image: '/assets/menu/banana_roll.png',

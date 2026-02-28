@@ -14,6 +14,7 @@ import {
     Search,
     RefreshCw,
     Trash2,
+    X,
 } from 'lucide-react';
 
 import POSPage from './POSPage';
@@ -111,6 +112,8 @@ function LoginPage({ onLogin }) {
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [showCapitalModal, setShowCapitalModal] = useState(false);
+    const [capitalForm, setCapitalForm] = useState({ amount: '', notes: '' });
     const [user, setUser] = useState(() => {
         const saved = localStorage.getItem('camucamu_admin');
         return saved ? JSON.parse(saved) : null;
@@ -192,9 +195,12 @@ Sampai ketemu! 🙏
         return true;
     };
 
-    const totalExpensesCost = (state.expenses || []).reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
-    const todayExpenses = (state.expenses || []).filter(e => e.date === new Date().toISOString().split('T')[0])
+    const totalExpensesCost = (state.expenses || []).filter(e => e.fundSource !== 'Modal Awal' && e.type !== 'capital').reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
+    const todayExpenses = (state.expenses || []).filter(e => e.date === new Date().toISOString().split('T')[0] && e.fundSource !== 'Modal Awal' && e.type !== 'capital')
         .reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
+
+    const totalModalAwal = (state.expenses || []).filter(e => e.type === 'capital').reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
+    const sisaModalAwal = totalModalAwal - (state.expenses || []).filter(e => e.type !== 'capital' && e.fundSource === 'Modal Awal').reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
 
     const totalOrders = (state.transactions || []).length;
     const totalRevenue = (state.transactions || []).reduce((s, t) => s + t.total, 0);
@@ -217,7 +223,7 @@ Sampai ketemu! 🙏
     const currentMonthExpenses = (state.expenses || []).filter(e => {
         const d = new Date(e.date);
         const now = new Date();
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && e.fundSource !== 'Modal Awal' && e.type !== 'capital';
     }).reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
     const currentMonthProfit = currentMonthOrders.reduce((s, t) => s + (t.profit || 0), 0) - currentMonthExpenses;
 
@@ -404,9 +410,10 @@ Sampai ketemu! 🙏
                                     color="var(--teal-light)"
                                 />
                                 <DashCard
-                                    icon="🎉" label="Profit Hari Ini"
-                                    value={formatRupiah(todayProfit)}
-                                    color="var(--green)"
+                                    icon={todayProfit >= 0 ? "🎉" : "⏳"}
+                                    label={todayProfit >= 0 ? "Profit Hari Ini" : "Minus / Balik Modal"}
+                                    value={formatRupiah(Math.abs(todayProfit))}
+                                    color={todayProfit >= 0 ? "var(--green)" : "var(--coral)"}
                                 />
                             </div>
                         </div>
@@ -436,8 +443,49 @@ Sampai ketemu! 🙏
                                     color="var(--teal-light)"
                                 />
                                 <DashCard
-                                    icon="🎉" label="Total Profit"
-                                    value={formatRupiah(totalProfit)}
+                                    icon={totalProfit >= 0 ? "🎉" : "⏳"}
+                                    label={totalProfit >= 0 ? "Total Profit" : "Sisa Balik Modal"}
+                                    value={formatRupiah(Math.abs(totalProfit))}
+                                    color={totalProfit >= 0 ? "var(--green)" : "var(--coral)"}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Modal Awal Stats */}
+                        <div style={{ marginBottom: 32 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                                <h3 style={{ fontSize: 14, margin: 0, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                    💎 Perputaran Modal Awal
+                                </h3>
+                                <button
+                                    onClick={() => setShowCapitalModal(true)}
+                                    style={{
+                                        padding: '6px 14px', background: 'rgba(78, 205, 196, 0.1)',
+                                        border: '1px solid rgba(78, 205, 196, 0.2)', borderRadius: 20,
+                                        color: 'var(--teal)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: 6,
+                                    }}
+                                >
+                                    + Setor Modal
+                                </button>
+                            </div>
+                            <div style={{
+                                display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                                gap: 16,
+                            }}>
+                                <DashCard
+                                    icon="🏦" label="Total Modal Awal (Injected)"
+                                    value={formatRupiah(totalModalAwal)}
+                                    color="var(--teal)"
+                                />
+                                <DashCard
+                                    icon="📉" label="Penggunaan Modal"
+                                    value={formatRupiah(totalModalAwal - sisaModalAwal)}
+                                    color="var(--coral)"
+                                />
+                                <DashCard
+                                    icon="💵" label="Sisa Dana Modal (Unspent)"
+                                    value={formatRupiah(sisaModalAwal)}
                                     color="var(--green)"
                                 />
                             </div>
@@ -449,8 +497,8 @@ Sampai ketemu! 🙏
                                 <h3 style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                     👥 Bagi Hasil Bulan Ini
                                 </h3>
-                                <span style={{ fontSize: 13, background: 'rgba(78, 205, 196, 0.1)', color: 'var(--teal)', padding: '4px 10px', borderRadius: 20, fontWeight: 600 }}>
-                                    Profit: {formatRupiah(currentMonthProfit)}
+                                <span style={{ fontSize: 13, background: currentMonthProfit >= 0 ? 'rgba(78, 205, 196, 0.1)' : 'rgba(255, 107, 107, 0.1)', color: currentMonthProfit >= 0 ? 'var(--teal)' : 'var(--coral)', padding: '4px 10px', borderRadius: 20, fontWeight: 600 }}>
+                                    {currentMonthProfit >= 0 ? 'Profit:' : 'Sisa Balik Modal:'} {formatRupiah(Math.abs(currentMonthProfit))}
                                 </span>
                             </div>
                             <div style={{
@@ -476,8 +524,8 @@ Sampai ketemu! 🙏
                                                 <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{f.share * 100}%</div>
                                             </div>
                                         </div>
-                                        <div style={{ fontWeight: 700, color: 'var(--green)', fontSize: 16 }}>
-                                            {formatRupiah(Math.floor(currentMonthProfit * f.share))}
+                                        <div style={{ fontWeight: 700, color: currentMonthProfit > 0 ? 'var(--green)' : 'var(--text-tertiary)', fontSize: 16 }}>
+                                            {currentMonthProfit > 0 ? formatRupiah(Math.floor(currentMonthProfit * f.share)) : 'Rp 0'}
                                         </div>
                                     </div>
                                 ))}
@@ -584,6 +632,53 @@ Sampai ketemu! 🙏
                                 </div>
                             </div>
                         )}
+
+                        {/* Capital Modal */}
+                        <div className={`modal-overlay ${showCapitalModal ? 'open' : ''}`} onClick={() => setShowCapitalModal(false)}>
+                            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                    <h2 style={{ margin: 0 }}>💰 Setor Modal Awal</h2>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => setShowCapitalModal(false)}>
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    dispatch({
+                                        type: 'ADD_EXPENSE',
+                                        payload: {
+                                            id: `EXP-${Date.now()}`,
+                                            type: 'capital',
+                                            title: 'Setor Modal Awal',
+                                            amount: parseInt(capitalForm.amount) || 0,
+                                            category: 'Setor Modal',
+                                            fundSource: null,
+                                            notes: capitalForm.notes,
+                                            date: new Date().toISOString().split('T')[0],
+                                            createdAt: new Date().toISOString(),
+                                        }
+                                    });
+                                    showToast('Modal awal berhasil ditambahkan!');
+                                    setShowCapitalModal(false);
+                                    setCapitalForm({ amount: '', notes: '' });
+                                }}>
+                                    <div className="form-group">
+                                        <label>Nominal Modal (Rp) *</label>
+                                        <input className="form-input" type="number" placeholder="Misal: 3000000" required min="1"
+                                            value={capitalForm.amount} onChange={(e) => setCapitalForm({ ...capitalForm, amount: e.target.value })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Keterangan (Opsional)</label>
+                                        <input className="form-input" type="text" placeholder="Misal: Modal dari tabungan"
+                                            value={capitalForm.notes} onChange={(e) => setCapitalForm({ ...capitalForm, notes: e.target.value })} />
+                                    </div>
+                                    <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }}>
+                                        Simpan Modal
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
                     </div>
                 )}
 

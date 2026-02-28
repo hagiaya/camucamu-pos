@@ -565,7 +565,7 @@ function FounderSection({ state, formatRupiah }) {
         });
     }, [state.expenses, period]);
 
-    const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
+    const totalExpenses = filteredExpenses.filter(e => e.fundSource !== 'Modal Awal').reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
     const totalRevenue = filteredTransactions.reduce((sum, t) => sum + t.total, 0);
     const rawProfit = filteredTransactions.reduce((sum, t) => sum + (t.profit || 0), 0);
     const totalProfit = rawProfit - totalExpenses;
@@ -633,12 +633,12 @@ function FounderSection({ state, formatRupiah }) {
                         <div className="result-value">-{formatRupiah(totalExpenses)}</div>
                         <div className="result-label">Total Pengeluaran</div>
                     </div>
-                    <div className="result-card green">
-                        <div className="result-icon">🎉</div>
-                        <div className="result-value" style={{ color: totalProfit < 0 ? 'var(--coral)' : 'inherit' }}>
-                            {formatRupiah(totalProfit)}
+                    <div className={`result-card ${totalProfit >= 0 ? "green" : "coral"}`}>
+                        <div className="result-icon">{totalProfit >= 0 ? "🎉" : "⏳"}</div>
+                        <div className="result-value">
+                            {totalProfit >= 0 ? formatRupiah(totalProfit) : `- ${formatRupiah(Math.abs(totalProfit))}`}
                         </div>
-                        <div className="result-label">Net Profit (Sisa Dibagi)</div>
+                        <div className="result-label">{totalProfit >= 0 ? "Net Profit (Sisa Dibagi)" : "Masih Proses Balik Modal"}</div>
                     </div>
                 </div>
 
@@ -694,8 +694,8 @@ function FounderSection({ state, formatRupiah }) {
                                 <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
                                     Jatah Keuntungan
                                 </div>
-                                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--green)' }}>
-                                    {formatRupiah(Math.floor(totalProfit * f.share))}
+                                <div style={{ fontSize: 24, fontWeight: 800, color: totalProfit > 0 ? 'var(--green)' : 'var(--text-tertiary)' }}>
+                                    {totalProfit > 0 ? formatRupiah(Math.floor(totalProfit * f.share)) : 'Rp 0'}
                                 </div>
                             </div>
                         </div>

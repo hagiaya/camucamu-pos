@@ -157,8 +157,9 @@ function appReducer(state, action) {
 
         // ============ ORDERS ============
         case 'ADD_ORDER': {
+            const orderId = action.payload.id || `ORD-${Date.now()}`;
             const order = {
-                id: `ORD-${Date.now()}`,
+                id: orderId,
                 items: [...state.cart],
                 total: state.cart.reduce((sum, item) => sum + item.price * item.qty, 0),
                 totalCost: state.cart.reduce((sum, item) => sum + item.cost * item.qty, 0),
@@ -254,8 +255,9 @@ function appReducer(state, action) {
         }
 
         case 'ADD_ONLINE_ORDER': {
+            const onlineOrderId = action.payload.id || `ONL-${Date.now()}`;
             const onlineOrder = {
-                id: `ONL-${Date.now()}`,
+                id: onlineOrderId,
                 items: action.payload.items,
                 total: action.payload.total,
                 totalCost: action.payload.totalCost,
@@ -311,7 +313,7 @@ function appReducer(state, action) {
 
         // ============ EXPENSES ============
         case 'ADD_EXPENSE': {
-            const newExpense = {
+            const newExpense = action.payload.id ? action.payload : {
                 ...action.payload,
                 id: `EXP-${Date.now()}`,
                 createdAt: new Date().toISOString(),
@@ -468,8 +470,9 @@ export function AppProvider({ children }) {
                     break;
                 case 'ADD_ORDER':
                     // Need to construct the exact order object that the reducer created
+                    const orderIdToSync = action.payload.id || `ORD-${Date.now()}`;
                     const newOrder = {
-                        id: `ORD-${Date.now()}`,
+                        id: orderIdToSync,
                         items: state.cart,
                         total: state.cart.reduce((sum, item) => sum + item.price * item.qty, 0),
                         totalCost: state.cart.reduce((sum, item) => sum + item.cost * item.qty, 0),
@@ -481,7 +484,8 @@ export function AppProvider({ children }) {
                         change: action.payload.change || null,
                         type: action.payload.type || 'dine-in',
                         status: 'completed',
-                        createdAt: new Date().toISOString(),
+                        cashierName: action.payload.cashierName || null,
+                        createdAt: action.payload.createdAt || new Date().toISOString(),
                     };
                     await syncTransaction(newOrder);
 
@@ -495,14 +499,15 @@ export function AppProvider({ children }) {
                     }
                     break;
                 case 'ADD_ONLINE_ORDER':
-                    const onlineOrder = {
-                        id: `ONL-${Date.now()}`,
+                    const onlineOrderIdToSync = action.payload.id || `ONL-${Date.now()}`;
+                    const onlineOrderSync = {
+                        id: onlineOrderIdToSync,
                         ...action.payload,
                         type: 'online',
                         status: 'completed',
-                        createdAt: new Date().toISOString(),
+                        createdAt: action.payload.createdAt || new Date().toISOString(),
                     };
-                    await syncTransaction(onlineOrder);
+                    await syncTransaction(onlineOrderSync);
 
                     // Sync product stock to Supabase
                     for (const item of action.payload.items) {
@@ -514,12 +519,12 @@ export function AppProvider({ children }) {
                     }
                     break;
                 case 'ADD_EXPENSE':
-                    const newExp = {
+                    const expenseToSync = action.payload.id ? action.payload : {
                         ...action.payload,
-                        id: `EXP-${Date.now()}`,
+                        id: `EXP-${Date.now()}`, // Fallback if missing, though it shouldn't be with the front-end fixes
                         createdAt: new Date().toISOString(),
                     };
-                    await syncExpense(newExp);
+                    await syncExpense(expenseToSync);
                     break;
                 case 'UPDATE_EXPENSE':
                     await syncExpense(action.payload);
