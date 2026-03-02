@@ -16,7 +16,16 @@ import {
     QrCode,
     Banknote,
     MessageSquare,
+    Calendar,
 } from 'lucide-react';
+
+const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
 export default function POSPage({ user }) {
     const [activeCategory, setActiveCategory] = useState('all');
@@ -25,6 +34,7 @@ export default function POSPage({ user }) {
     const [lastOrder, setLastOrder] = useState(null);
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState('');
+    const [orderDate, setOrderDate] = useState(getTodayDate());
 
     const [paymentMethod, setPaymentMethod] = useState('');
     const [orderType, setOrderType] = useState('dine-in');
@@ -48,6 +58,11 @@ export default function POSPage({ user }) {
             setCustomerPhone(state.editingOrder.customerPhone || '');
             setOrderType(state.editingOrder.type || 'dine-in');
             setPaymentMethod(state.editingOrder.paymentMethod || 'cash');
+            if (state.editingOrder.createdAt) {
+                setOrderDate(state.editingOrder.createdAt.split('T')[0]);
+            }
+        } else {
+            setOrderDate(getTodayDate());
         }
     }, [state.editingOrder]);
 
@@ -144,7 +159,24 @@ export default function POSPage({ user }) {
             change: method === 'cash' ? changeDue : null,
             cashierName: user?.username || (state.editingOrder?.cashierName || 'Admin'),
             status: state.editingOrder ? state.editingOrder.status : 'proses',
-            createdAt: state.editingOrder ? state.editingOrder.createdAt : new Date().toISOString(),
+            createdAt: (() => {
+                if (state.editingOrder) {
+                    // If the date part changed, update it but try to keep time?
+                    // Actually, if they edited the date, they probably want that date.
+                    const datePart = orderDate;
+                    const oldTimePart = state.editingOrder.createdAt.split('T')[1];
+                    return `${datePart}T${oldTimePart}`;
+                }
+                // For new orders
+                const today = getTodayDate();
+                if (orderDate === today) {
+                    return new Date().toISOString();
+                } else {
+                    // For backdated orders, use the selected date at 12:00:00 local
+                    // to avoid potential timezone issues shifting it to previous day.
+                    return `${orderDate}T12:00:00.000Z`;
+                }
+            })(),
         };
 
         if (state.editingOrder) {
@@ -162,6 +194,7 @@ export default function POSPage({ user }) {
         setCustomerName('');
         setCustomerPhone('');
         setCashReceived('');
+        setOrderDate(getTodayDate());
 
         setQrisStatus('waiting');
         showToast('Pembayaran berhasil! 🎉');
@@ -174,6 +207,7 @@ export default function POSPage({ user }) {
         setCashReceived('');
         setQrisStatus('waiting');
         setQrisTimer(300);
+        setOrderDate(getTodayDate());
         if (state.editingOrder) {
             dispatch({ type: 'SET_EDIT_ORDER', payload: null });
             dispatch({ type: 'CLEAR_CART' });
@@ -509,7 +543,18 @@ export default function POSPage({ user }) {
                                                         style={{ padding: '10px 14px', fontSize: 14 }}
                                                     />
                                                 </div>
-
+                                                <div className="form-group" style={{ marginBottom: 12 }}>
+                                                    <label style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                        <Calendar size={12} /> Tanggal Order
+                                                    </label>
+                                                    <input
+                                                        className="form-input"
+                                                        type="date"
+                                                        value={orderDate}
+                                                        onChange={(e) => setOrderDate(e.target.value)}
+                                                        style={{ padding: '10px 14px', fontSize: 14 }}
+                                                    />
+                                                </div>
                                             </div>
 
                                             <div style={{
