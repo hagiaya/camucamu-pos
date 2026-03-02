@@ -15,6 +15,7 @@ import {
     RefreshCw,
     Trash2,
     X,
+    Calendar,
 } from 'lucide-react';
 
 import POSPage from './POSPage';
@@ -113,6 +114,11 @@ export default function AdminPage() {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [dashboardPeriod, setDashboardPeriod] = useState('day');
+    const [selectedDate, setSelectedDate] = useState(() => {
+        const d = new Date();
+        d.setHours(d.getHours() - 5); // Align with business day logic (until 5 AM is previous day)
+        return d.toISOString().split('T')[0];
+    });
     const [user, setUser] = useState(() => {
         const saved = localStorage.getItem('camucamu_admin');
         return saved ? JSON.parse(saved) : null;
@@ -165,20 +171,21 @@ export default function AdminPage() {
     };
 
     const dashboardStats = useMemo(() => {
-        const nowBusiness = getBusinessDate(new Date());
+        const selDateObj = new Date(selectedDate + 'T12:00:00');
+        const selDateBusiness = getBusinessDate(selDateObj);
 
         const isMatchPeriod = (dateOb) => {
             const d = getBusinessDate(dateOb);
             if (dashboardPeriod === 'day') {
-                return d.toDateString() === nowBusiness.toDateString();
+                return d.toDateString() === selDateBusiness.toDateString();
             } else if (dashboardPeriod === 'week') {
-                const oneWeekAgo = new Date(nowBusiness);
-                oneWeekAgo.setDate(nowBusiness.getDate() - 7);
-                return d >= oneWeekAgo;
+                const oneWeekAgo = new Date(selDateBusiness);
+                oneWeekAgo.setDate(selDateBusiness.getDate() - 7);
+                return d >= oneWeekAgo && d <= selDateBusiness;
             } else if (dashboardPeriod === 'month') {
-                return d.getMonth() === nowBusiness.getMonth() && d.getFullYear() === nowBusiness.getFullYear();
+                return d.getMonth() === selDateBusiness.getMonth() && d.getFullYear() === selDateBusiness.getFullYear();
             } else if (dashboardPeriod === 'year') {
-                return d.getFullYear() === nowBusiness.getFullYear();
+                return d.getFullYear() === selDateBusiness.getFullYear();
             }
             return true;
         };
@@ -222,9 +229,9 @@ export default function AdminPage() {
         const maxRev = Math.max(...chartDataArray.map((d) => d.revenue), 1);
 
         return { revenue, expenses, cost, profit, chartData: chartDataArray, maxRev };
-    }, [state.transactions, state.expenses, dashboardPeriod]);
+    }, [state.transactions, state.expenses, dashboardPeriod, selectedDate]);
 
-    const nowBusinessStr = getBusinessDateString(new Date());
+    const nowBusinessStr = getBusinessDateString(new Date(selectedDate + 'T12:00:00'));
 
     const totalExpensesCost = (state.expenses || []).filter(e => e.type !== 'capital').reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
     const totalOrders = (state.transactions || []).length;
@@ -401,32 +408,32 @@ export default function AdminPage() {
                                 👋 Selamat Datang, Admin!
                             </h1>
                             <p style={{ color: 'var(--text-tertiary)', fontSize: 14 }}>
-                                Ringkasan bisnis Camu Camu hari ini
+                                Ringkasan bisnis Camu Camu untuk tanggal: <span style={{ color: 'var(--coral)', fontWeight: 600 }}>{new Date(selectedDate + 'T12:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                             </p>
                         </div>
 
                         {/* Today Stats */}
                         <div style={{ marginBottom: 32 }}>
                             <h3 style={{ fontSize: 14, color: 'var(--text-tertiary)', marginBottom: 16, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                📅 Hari Ini
+                                📅 Ringkasan Filter
                             </h3>
                             <div style={{
                                 display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
                                 gap: 16,
                             }}>
                                 <DashCard
-                                    icon="🛒" label="Pesanan Hari Ini"
+                                    icon="🛒" label="Pesanan"
                                     value={todayOrders.length}
                                     color="var(--coral-light)"
                                 />
                                 <DashCard
-                                    icon="💰" label="Revenue Hari Ini"
+                                    icon="💰" label="Revenue"
                                     value={formatRupiah(todayRevenue)}
                                     color="var(--teal-light)"
                                 />
                                 <DashCard
                                     icon={todayProfit >= 0 ? "🎉" : "⏳"}
-                                    label={todayProfit >= 0 ? "Profit Hari Ini" : "Minus / Balik Modal"}
+                                    label={todayProfit >= 0 ? "Profit" : "Minus / Balik Modal"}
                                     value={formatRupiah(Math.abs(todayProfit))}
                                     color={todayProfit >= 0 ? "var(--green)" : "var(--coral)"}
                                 />
@@ -463,38 +470,60 @@ export default function AdminPage() {
                                 <h3 style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                     👥 Bagi Hasil & Laporan
                                 </h3>
-                                <div style={{
-                                    display: 'flex',
-                                    background: 'var(--bg-surface)',
-                                    padding: 4,
-                                    borderRadius: 12,
-                                    border: '1px solid var(--border)'
-                                }}>
-                                    {[
-                                        { id: 'day', label: 'Hari Ini' },
-                                        { id: 'week', label: '7 Hari' },
-                                        { id: 'month', label: 'Bulan Ini' },
-                                        { id: 'year', label: 'Tahun Ini' },
-                                    ].map((p) => (
-                                        <button
-                                            key={p.id}
-                                            onClick={() => setDashboardPeriod(p.id)}
-                                            style={{
-                                                padding: '6px 16px',
-                                                borderRadius: 10,
-                                                border: 'none',
-                                                background: dashboardPeriod === p.id ? 'var(--bg-card)' : 'transparent',
-                                                color: dashboardPeriod === p.id ? 'var(--coral)' : 'var(--text-secondary)',
-                                                cursor: 'pointer',
-                                                fontSize: 13,
-                                                fontWeight: dashboardPeriod === p.id ? 600 : 400,
-                                                boxShadow: dashboardPeriod === p.id ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
-                                                transition: 'all 0.2s'
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                        <Calendar size={14} style={{ position: 'absolute', left: 12, color: 'var(--text-tertiary)' }} />
+                                        <input
+                                            type="date"
+                                            value={selectedDate}
+                                            onChange={(e) => {
+                                                setSelectedDate(e.target.value);
+                                                setDashboardPeriod('day');
                                             }}
-                                        >
-                                            {p.label}
-                                        </button>
-                                    ))}
+                                            style={{
+                                                padding: '8px 12px 8px 34px',
+                                                borderRadius: 'var(--radius-md)',
+                                                border: '1px solid var(--border)',
+                                                fontSize: 13,
+                                                background: 'var(--bg-card)',
+                                                color: 'var(--text-primary)',
+                                                outline: 'none',
+                                            }}
+                                        />
+                                    </div>
+                                    <div style={{
+                                        display: 'flex',
+                                        background: 'var(--bg-surface)',
+                                        padding: 4,
+                                        borderRadius: 12,
+                                        border: '1px solid var(--border)'
+                                    }}>
+                                        {[
+                                            { id: 'day', label: 'Hari Ini' },
+                                            { id: 'week', label: '7 Hari' },
+                                            { id: 'month', label: 'Bulan Ini' },
+                                            { id: 'year', label: 'Tahun Ini' },
+                                        ].map((p) => (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => setDashboardPeriod(p.id)}
+                                                style={{
+                                                    padding: '6px 16px',
+                                                    borderRadius: 10,
+                                                    border: 'none',
+                                                    background: dashboardPeriod === p.id ? 'var(--bg-card)' : 'transparent',
+                                                    color: dashboardPeriod === p.id ? 'var(--coral)' : 'var(--text-secondary)',
+                                                    cursor: 'pointer',
+                                                    fontSize: 13,
+                                                    fontWeight: dashboardPeriod === p.id ? 600 : 400,
+                                                    boxShadow: dashboardPeriod === p.id ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                {p.label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
