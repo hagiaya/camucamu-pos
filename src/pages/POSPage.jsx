@@ -17,6 +17,7 @@ import {
     Banknote,
     MessageSquare,
     Calendar,
+    CreditCard,
 } from 'lucide-react';
 
 const getTodayDate = () => {
@@ -50,6 +51,9 @@ export default function POSPage({ user }) {
     const [waNumber, setWaNumber] = useState('');
     const [isSendingWA, setIsSendingWA] = useState(false);
     const [showWAModal, setShowWAModal] = useState(false);
+    const [isMidtransLoading, setIsMidtransLoading] = useState(false);
+    const [midtransStatus, setMidtransStatus] = useState('waiting'); // 'waiting', 'success', 'pending', 'error'
+    const [snapToken, setSnapToken] = useState(null);
 
     // Effect to load editing order data
     useEffect(() => {
@@ -138,8 +142,48 @@ export default function POSPage({ user }) {
             setQrisTimer(300);
             setQrisStatus('waiting');
             setStep('qris');
+        } else if (method === 'midtrans') {
+            startMidtransPayment();
         } else if (method === 'unpaid') {
             processPayment('unpaid');
+        }
+    };
+
+    const startMidtransPayment = async () => {
+        setIsMidtransLoading(true);
+        try {
+            // Note: In a real app, this MUST be done on the server.
+            // Since we're in a POS environment, we might use a serverless function.
+            // This is a placeholder for the actual API call.
+
+            /* 
+            const response = await fetch('/api/midtrans/create', {
+                method: 'POST',
+                body: JSON.stringify({
+                    orderId: `ORD-${Date.now()}`,
+                    amount: total,
+                    customer: { name: customerName, phone: customerPhone }
+                })
+            });
+            const data = await response.json();
+            setSnapToken(data.token);
+            */
+
+            // FOR DEMO: If user hasn't set up the API yet, we show a simulation or a toast
+            showToast('Menghubungkan ke Midtrans...', 'info');
+
+            // Check if snap is available (from index.html script)
+            if (window.snap) {
+                // This is where you'd call window.snap.pay(token, { ... })
+                showToast('Fitur Midtrans memerlukan integrasi Server-Side untuk keamanan.', 'warning');
+                setIsMidtransLoading(false);
+            } else {
+                showToast('Midtrans SDK tidak terdeteksi!', 'error');
+                setIsMidtransLoading(false);
+            }
+        } catch (err) {
+            showToast('Gagal memproses pembayaran Midtrans', 'error');
+            setIsMidtransLoading(false);
         }
     };
 
@@ -639,6 +683,42 @@ export default function POSPage({ user }) {
                                                         </div>
                                                     </div>
                                                     <QrCode size={20} style={{ marginLeft: 'auto', color: 'var(--purple)' }} />
+                                                </button>
+
+                                                <button
+                                                    onClick={() => selectPaymentMethod('midtrans')}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', gap: 14,
+                                                        padding: '16px 18px',
+                                                        background: 'var(--bg-card)',
+                                                        border: '1px solid var(--border)',
+                                                        borderRadius: 'var(--radius-md)',
+                                                        color: 'var(--text-primary)',
+                                                        cursor: 'pointer',
+                                                        transition: 'var(--transition)',
+                                                    }}
+                                                    onMouseOver={(e) => {
+                                                        e.currentTarget.style.borderColor = 'var(--teal)';
+                                                        e.currentTarget.style.background = 'rgba(180, 83, 9, 0.06)';
+                                                    }}
+                                                    onMouseOut={(e) => {
+                                                        e.currentTarget.style.borderColor = 'var(--border)';
+                                                        e.currentTarget.style.background = 'var(--bg-card)';
+                                                    }}
+                                                >
+                                                    <div style={{
+                                                        width: 48, height: 48, borderRadius: 12,
+                                                        background: 'rgba(180, 83, 9, 0.12)',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        fontSize: 24,
+                                                    }}>💳</div>
+                                                    <div style={{ textAlign: 'left' }}>
+                                                        <div style={{ fontWeight: 600, fontSize: 15 }}>Midtrans (QRIS/Bank)</div>
+                                                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                                                            Otomatis via QRIS, VA, atau Kartu
+                                                        </div>
+                                                    </div>
+                                                    <CreditCard size={20} style={{ marginLeft: 'auto', color: 'var(--teal)' }} />
                                                 </button>
 
                                                 <button
