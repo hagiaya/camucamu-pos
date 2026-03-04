@@ -153,11 +153,6 @@ export default function AdminPage() {
         showToast('Berhasil keluar');
     };
 
-    if (!user) {
-        return <LoginPage onLogin={handleLogin} />;
-    }
-
-
 
     const getBusinessDate = (dateOb) => {
         const d = new Date(dateOb);
@@ -175,6 +170,29 @@ export default function AdminPage() {
         const selDateBusiness = getBusinessDate(selDateObj);
 
         const isMatchPeriod = (dateOb) => {
+            // Special handling for calendar dates (strings like "YYYY-MM-DD")
+            if (typeof dateOb === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateOb)) {
+                if (dashboardPeriod === 'day') {
+                    return dateOb === selectedDate;
+                } else if (dashboardPeriod === 'week') {
+                    const d = new Date(dateOb + 'T12:00:00');
+                    const selDateBusinessDate = new Date(selectedDate + 'T12:00:00');
+                    const oneWeekAgo = new Date(selDateBusinessDate);
+                    oneWeekAgo.setDate(selDateBusinessDate.getDate() - 7);
+                    return d >= oneWeekAgo && d <= selDateBusinessDate;
+                } else if (dashboardPeriod === 'month') {
+                    const d = new Date(dateOb + 'T12:00:00');
+                    const selDateBusinessDate = new Date(selectedDate + 'T12:00:00');
+                    return d.getMonth() === selDateBusinessDate.getMonth() && d.getFullYear() === selDateBusinessDate.getFullYear();
+                } else if (dashboardPeriod === 'year') {
+                    const d = new Date(dateOb + 'T12:00:00');
+                    const selDateBusinessDate = new Date(selectedDate + 'T12:00:00');
+                    return d.getFullYear() === selDateBusinessDate.getFullYear();
+                }
+                return true;
+            }
+
+            // Default business hour logic for timestamps
             const d = getBusinessDate(dateOb);
             if (dashboardPeriod === 'day') {
                 return d.toDateString() === selDateBusiness.toDateString();
@@ -191,12 +209,12 @@ export default function AdminPage() {
         };
 
         const filteredOrders = (state.transactions || []).filter(t => isMatchPeriod(t.createdAt));
-        const filteredExpensesList = (state.expenses || []).filter(e => isMatchPeriod(e.createdAt || e.date) && e.type !== 'capital');
+        const filteredExpensesList = (state.expenses || []).filter(e => isMatchPeriod(e.date || e.createdAt) && e.type !== 'capital');
 
         const expenses = filteredExpensesList.reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
         const revenue = filteredOrders.reduce((s, t) => s + (t.total || 0), 0);
-        const cost = filteredOrders.reduce((s, t) => s + (t.totalCost || 0), 0) - expenses;
-        const profit = filteredOrders.reduce((s, t) => s + (t.profit || 0), 0);
+        const cost = filteredOrders.reduce((s, t) => s + (t.totalCost || 0), 0);
+        const profit = filteredOrders.reduce((s, t) => s + (t.profit || 0), 0) - expenses;
 
         const chartMap = {};
 
@@ -231,6 +249,11 @@ export default function AdminPage() {
         return { revenue, expenses, cost, profit, chartData: chartDataArray, maxRev };
     }, [state.transactions, state.expenses, dashboardPeriod, selectedDate]);
 
+    if (!user) {
+        return <LoginPage onLogin={handleLogin} />;
+    }
+
+
     const nowBusinessStr = getBusinessDateString(new Date(selectedDate + 'T12:00:00'));
 
     const totalExpensesCost = (state.expenses || []).filter(e => e.type !== 'capital').reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
@@ -241,13 +264,16 @@ export default function AdminPage() {
 
     const todayOrders = (state.transactions || []).filter(t => getBusinessDateString(t.createdAt) === nowBusinessStr);
     const todayExpensesList = (state.expenses || []).filter(e => {
-        const dateInput = e.createdAt || e.date;
+        const dateInput = e.date || e.createdAt;
+        if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+            return dateInput === selectedDate;
+        }
         return getBusinessDateString(dateInput) === nowBusinessStr && e.type !== 'capital';
     });
 
     const todayExpenses = todayExpensesList.reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
     const todayRevenue = todayOrders.reduce((s, t) => s + (t.total || 0), 0);
-    const todayProfit = todayOrders.reduce((s, t) => s + (t.profit || 0), 0);
+    const todayProfit = todayOrders.reduce((s, t) => s + (t.profit || 0), 0) - todayExpenses;
 
     const founderSplits = [
         { name: 'Reza', share: 0.30, icon: '🧔' },

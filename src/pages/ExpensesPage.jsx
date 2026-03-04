@@ -67,7 +67,16 @@ export default function ExpensesPage() {
     // Stats
     const totalExpenses = expenses.filter(e => e.type !== 'capital').reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
     const todayExpenses = expenses.filter(e => {
-        const dateInput = e.createdAt || e.date;
+        const dateInput = e.date || e.createdAt;
+        // If it's a calendar date string, use direct comparison with business day logic or selected date
+        // For simplicity on this page, we'll align with the business day string logic but prioritize e.date
+        if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+            // Convert "YYYY-MM-DD" to business day string for comparison
+            // or just compare it to today's date?
+            // Actually, nowBusinessStr is a .toDateString() output like "Wed Mar 04 2026"
+            const d = new Date(dateInput + 'T12:00:00');
+            return d.toDateString() === nowBusinessStr && e.type !== 'capital';
+        }
         return getBusinessDateString(dateInput) === nowBusinessStr && e.type !== 'capital';
     }).reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
     const countExpenses = expenses.filter(e => e.type !== 'capital').length;

@@ -530,17 +530,25 @@ function FounderSection({ state, formatRupiah }) {
     const filteredTransactions = useMemo(() => {
         const txns = state.transactions || [];
         const now = new Date();
+        // Shift 'now' to business date if before 5 AM
+        const businessNow = new Date(now);
+        businessNow.setHours(businessNow.getHours() - 5);
+        const businessNowStr = businessNow.toDateString();
 
         return txns.filter(t => {
             const date = new Date(t.createdAt);
+            const businessDate = new Date(date);
+            businessDate.setHours(businessDate.getHours() - 5);
+            const bizDateStr = businessDate.toDateString();
+
             if (period === 'day') {
-                return date.toDateString() === now.toDateString();
+                return bizDateStr === businessNowStr;
             } else if (period === 'week') {
-                const oneWeekAgo = new Date();
-                oneWeekAgo.setDate(now.getDate() - 7);
-                return date >= oneWeekAgo;
+                const oneWeekAgo = new Date(businessNow);
+                oneWeekAgo.setDate(businessNow.getDate() - 7);
+                return businessDate >= oneWeekAgo && businessDate <= businessNow;
             } else if (period === 'month') {
-                return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+                return businessDate.getMonth() === businessNow.getMonth() && businessDate.getFullYear() === businessNow.getFullYear();
             }
             return true;
         });
@@ -549,17 +557,32 @@ function FounderSection({ state, formatRupiah }) {
     const filteredExpenses = useMemo(() => {
         const exps = state.expenses || [];
         const now = new Date();
+        const businessNow = new Date(now);
+        businessNow.setHours(businessNow.getHours() - 5);
+        const businessNowStr = businessNow.toDateString();
 
         return exps.filter(e => {
-            const date = new Date(e.date);
+            const dateInput = e.date || e.createdAt;
+            let bizDateStr = "";
+
+            if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+                bizDateStr = new Date(dateInput + 'T12:00:00').toDateString();
+            } else {
+                const d = new Date(dateInput);
+                d.setHours(d.getHours() - 5);
+                bizDateStr = d.toDateString();
+            }
+
             if (period === 'day') {
-                return date.toDateString() === now.toDateString();
+                return bizDateStr === businessNowStr;
             } else if (period === 'week') {
-                const oneWeekAgo = new Date();
-                oneWeekAgo.setDate(now.getDate() - 7);
-                return date >= oneWeekAgo;
+                const d = new Date(bizDateStr);
+                const oneWeekAgo = new Date(businessNow);
+                oneWeekAgo.setDate(businessNow.getDate() - 7);
+                return d >= oneWeekAgo && d <= businessNow;
             } else if (period === 'month') {
-                return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+                const d = new Date(bizDateStr);
+                return d.getMonth() === businessNow.getMonth() && d.getFullYear() === businessNow.getFullYear();
             }
             return true;
         });
