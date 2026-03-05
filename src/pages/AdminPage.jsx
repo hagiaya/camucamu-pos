@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -843,9 +843,43 @@ function TransactionsManagement({ role, setActiveTab }) {
         return matchSearch && matchStatus;
     });
 
+    // Group transactions by date for daily view
+    const groupedTransactions = filtered.reduce((groups, txn) => {
+        let dateKey = 'Tanpa Tanggal';
+        try {
+            const d = new Date(txn.createdAt);
+            if (!isNaN(d.getTime())) {
+                dateKey = d.toISOString().split('T')[0];
+            }
+        } catch (e) {
+            console.error("Invalid date for txn:", txn.id);
+        }
+
+        if (!groups[dateKey]) {
+            groups[dateKey] = {
+                date: dateKey,
+                items: [],
+                total: 0
+            };
+        }
+        groups[dateKey].items.push(txn);
+        groups[dateKey].total += (txn.total || 0);
+        return groups;
+    }, {});
+
+    const sortedDates = Object.keys(groupedTransactions).sort((a, b) => {
+        if (a === 'Tanpa Tanggal') return 1;
+        if (b === 'Tanpa Tanggal') return -1;
+        return new Date(b) - new Date(a);
+    });
+
     const handleUpdateStatus = (txn, newStatus) => {
         dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id: txn.id, status: newStatus } });
     };
+
+    const totalFilteredAmount = filtered.reduce((sum, t) => sum + (t.total || 0), 0);
+    const countFiltered = filtered.length;
+    const totalFilteredProfit = filtered.reduce((sum, t) => sum + (t.profit || 0), 0);
 
     return (
         <div style={{ padding: 32 }}>
@@ -883,6 +917,51 @@ function TransactionsManagement({ role, setActiveTab }) {
                             <Trash2 size={16} /> Reset Riwayat
                         </button>
                     )}
+                </div>
+
+                {/* Stats Cards for Transactions */}
+                <div style={{
+                    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: 16, marginBottom: 24,
+                }}>
+                    <div style={{
+                        background: 'var(--bg-card)', border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-lg)', padding: 16,
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <BarChart3 size={18} style={{ color: 'var(--teal-light)' }} />
+                            <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 600 }}>Total Pemasukan (Filter)</span>
+                        </div>
+                        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--teal-light)', fontFamily: "'Space Grotesk', sans-serif" }}>
+                            {formatRupiah(totalFilteredAmount)}
+                        </div>
+                    </div>
+
+                    <div style={{
+                        background: 'var(--bg-card)', border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-lg)', padding: 16,
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <Calculator size={18} style={{ color: 'var(--yellow)' }} />
+                            <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 600 }}>Total Profit (Filter)</span>
+                        </div>
+                        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--yellow)', fontFamily: "'Space Grotesk', sans-serif" }}>
+                            {formatRupiah(totalFilteredProfit)}
+                        </div>
+                    </div>
+
+                    <div style={{
+                        background: 'var(--bg-card)', border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-lg)', padding: 16,
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <ShoppingCart size={18} style={{ color: 'var(--coral)' }} />
+                            <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 600 }}>Jumlah Pesanan</span>
+                        </div>
+                        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', fontFamily: "'Space Grotesk', sans-serif" }}>
+                            {countFiltered} <span style={{ fontSize: 14, color: 'var(--text-tertiary)', fontWeight: 400 }}>Transaksi</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: 12 }}>
@@ -932,165 +1011,204 @@ function TransactionsManagement({ role, setActiveTab }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {filtered.length === 0 ? (
+                        {sortedDates.length === 0 ? (
                             <tr>
-                                <td colSpan="6" style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                                <td colSpan="7" style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)' }}>
                                     Tidak ada transaksi ditemukan
                                 </td>
                             </tr>
-                        ) : filtered.map((txn) => (
-                            <tr key={txn.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
-                                <td style={{ padding: '16px 20px' }}>
-                                    <div style={{ fontWeight: 600, fontSize: 14 }}>{txn.id}</div>
-                                    <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-                                        {new Date(txn.createdAt).toLocaleString('id-ID', {
-                                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-                                        })}
-                                    </div>
-                                </td>
-                                <td style={{ padding: '16px 20px' }}>
-                                    <div style={{ fontWeight: 600 }}>{txn.customerName}</div>
-                                    <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{txn.customerPhone || '-'}</div>
-                                </td>
-                                <td style={{ padding: '16px 20px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <div style={{
-                                            width: 32, height: 32, borderRadius: '50%',
-                                            background: txn.cashierName === 'System' ? 'rgba(108, 92, 231, 0.1)' : 'rgba(46, 204, 113, 0.1)',
-                                            color: txn.cashierName === 'System' ? 'var(--purple)' : 'var(--green)',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            fontSize: 12, fontWeight: 700, textTransform: 'uppercase'
-                                        }}>
-                                            {(txn.cashierName || 'A')[0]}
-                                        </div>
-                                        <div style={{ fontSize: 14, fontWeight: 500 }}>{txn.cashierName || 'Admin'}</div>
-                                    </div>
-                                </td>
-                                <td style={{ padding: '16px 20px' }}>
-                                    <div style={{ fontSize: 13 }}>
-                                        {txn.items.map(i => `${i.name} (${i.qty})`).join(', ')}
-                                    </div>
-                                    {txn.notes && <div style={{ fontSize: 11, color: 'var(--coral)', marginTop: 4 }}>Note: {txn.notes}</div>}
-                                </td>
-                                <td style={{ padding: '16px 20px' }}>
-                                    <div style={{ fontWeight: 700 }}>{formatRupiah(txn.total)}</div>
-                                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{txn.paymentMethod?.toUpperCase()}</div>
-                                </td>
-                                <td style={{ padding: '16px 20px' }}>
-                                    <span style={{
-                                        padding: '4px 10px',
-                                        borderRadius: 20,
-                                        fontSize: 11,
-                                        fontWeight: 600,
-                                        background:
-                                            getStatusNormalized(txn.status) === 'dibayar' ? 'rgba(46, 204, 113, 0.1)' :
-                                                getStatusNormalized(txn.status) === 'diambil' ? 'rgba(253, 203, 110, 0.1)' : 'rgba(255, 107, 107, 0.1)',
-                                        color:
-                                            getStatusNormalized(txn.status) === 'dibayar' ? 'var(--green)' :
-                                                getStatusNormalized(txn.status) === 'diambil' ? 'var(--yellow)' : 'var(--coral)',
-                                        border: `1px solid ${getStatusNormalized(txn.status) === 'dibayar' ? 'rgba(46, 204, 113, 0.2)' :
-                                            getStatusNormalized(txn.status) === 'diambil' ? 'rgba(253, 203, 110, 0.2)' : 'rgba(255, 107, 107, 0.2)'
-                                            }`
+                        ) : sortedDates.map((dateString) => (
+                            <React.Fragment key={dateString}>
+                                {/* Daily Header/Total */}
+                                <tr>
+                                    <td colSpan="7" style={{
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        padding: '12px 20px',
+                                        borderBottom: '1px solid var(--border)',
                                     }}>
-                                        {getStatusNormalized(txn.status) === 'dibayar' ? 'PESANAN DIBAYAR' :
-                                            getStatusNormalized(txn.status) === 'diambil' ? 'PESANAN DIAMBIL' : 'PESANAN PROSES'}
-                                    </span>
-                                </td>
-                                <td style={{ padding: '16px 20px' }}>
-                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                        {getStatusNormalized(txn.status) === 'proses' && (
-                                            <button
-                                                onClick={() => handleUpdateStatus(txn, 'diambil')}
-                                                style={{
-                                                    padding: '8px 12px',
-                                                    background: 'var(--yellow)',
-                                                    color: '#000',
-                                                    border: 'none',
-                                                    borderRadius: 8,
-                                                    fontSize: 12,
-                                                    fontWeight: 600,
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 6
-                                                }}
-                                            >
-                                                <CheckCircle size={14} /> Diambil
-                                            </button>
-                                        )}
-                                        {getStatusNormalized(txn.status) === 'diambil' && (
-                                            <button
-                                                onClick={() => handleUpdateStatus(txn, 'dibayar')}
-                                                style={{
-                                                    padding: '8px 12px',
-                                                    background: 'var(--green)',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: 8,
-                                                    fontSize: 12,
-                                                    fontWeight: 600,
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 6
-                                                }}
-                                            >
-                                                <CheckCircle size={14} /> Dibayar
-                                            </button>
-                                        )}
-                                        {getStatusNormalized(txn.status) !== 'dibayar' && (
-                                            <button
-                                                onClick={() => {
-                                                    dispatch({ type: 'SET_CART', payload: txn.items });
-                                                    dispatch({ type: 'SET_EDIT_ORDER', payload: txn });
-                                                    setActiveTab('pos');
-                                                }}
-                                                style={{
-                                                    padding: '8px 12px',
-                                                    background: 'var(--purple)',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: 8,
-                                                    fontSize: 12,
-                                                    fontWeight: 600,
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 6
-                                                }}
-                                            >
-                                                ✏️ Edit
-                                            </button>
-                                        )}
-                                        {getStatusNormalized(txn.status) === 'dibayar' && (
-                                            <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 600 }}>Transaksi Selesai</span>
-                                        )}
-                                        <button
-                                            onClick={() => {
-                                                if (window.confirm('Yakin ingin menghapus pesanan ini? Stok produk akan dikembalikan otomatis.')) {
-                                                    dispatch({ type: 'DELETE_ORDER', payload: txn.id });
-                                                    showToast('Pesanan berhasil dihapus! 🎉');
-                                                }
-                                            }}
-                                            title="Hapus Pesanan"
-                                            style={{
-                                                padding: '8px',
-                                                background: 'rgba(255, 107, 107, 0.1)',
-                                                color: 'var(--coral)',
-                                                border: '1px solid rgba(255, 107, 107, 0.2)',
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: 'var(--text-primary)', fontSize: 13 }}>
+                                                <Calendar size={14} style={{ color: 'var(--teal-light)' }} />
+                                                <span>
+                                                    {dateString === 'Tanpa Tanggal' ? 'Tanpa Tanggal' : new Date(dateString).toLocaleDateString('id-ID', {
+                                                        weekday: 'long',
+                                                        day: 'numeric',
+                                                        month: 'long',
+                                                        year: 'numeric'
+                                                    })}
+                                                </span>
+                                            </div>
+                                            <div style={{
+                                                color: 'var(--teal-light)',
+                                                padding: '4px 12px',
                                                 borderRadius: 8,
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                marginLeft: 'auto'
-                                            }}
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
+                                                background: 'rgba(78, 205, 196, 0.1)',
+                                                border: '1px solid rgba(78, 205, 196, 0.2)',
+                                                fontWeight: 700,
+                                                fontSize: 13,
+                                                fontFamily: "'Space Grotesk', sans-serif"
+                                            }}>
+                                                Total Pemasukan: {formatRupiah(groupedTransactions[dateString].total)}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                {groupedTransactions[dateString].items.map((txn) => (
+                                    <tr key={txn.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
+                                        <td style={{ padding: '16px 20px' }}>
+                                            <div style={{ fontWeight: 600, fontSize: 14 }}>{txn.id}</div>
+                                            <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                                                {new Date(txn.createdAt).toLocaleTimeString('id-ID', {
+                                                    hour: '2-digit', minute: '2-digit'
+                                                })}
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '16px 20px' }}>
+                                            <div style={{ fontWeight: 600 }}>{txn.customerName}</div>
+                                            <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{txn.customerPhone || '-'}</div>
+                                        </td>
+                                        <td style={{ padding: '16px 20px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <div style={{
+                                                    width: 32, height: 32, borderRadius: '50%',
+                                                    background: txn.cashierName === 'System' ? 'rgba(108, 92, 231, 0.1)' : 'rgba(46, 204, 113, 0.1)',
+                                                    color: txn.cashierName === 'System' ? 'var(--purple)' : 'var(--green)',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    fontSize: 12, fontWeight: 700, textTransform: 'uppercase'
+                                                }}>
+                                                    {(txn.cashierName || 'A')[0]}
+                                                </div>
+                                                <div style={{ fontSize: 14, fontWeight: 500 }}>{txn.cashierName || 'Admin'}</div>
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '16px 20px' }}>
+                                            <div style={{ fontSize: 13 }}>
+                                                {txn.items.map(i => `${i.name} (${i.qty})`).join(', ')}
+                                            </div>
+                                            {txn.notes && <div style={{ fontSize: 11, color: 'var(--coral)', marginTop: 4 }}>Note: {txn.notes}</div>}
+                                        </td>
+                                        <td style={{ padding: '16px 20px' }}>
+                                            <div style={{ fontWeight: 700 }}>{formatRupiah(txn.total)}</div>
+                                            <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{txn.paymentMethod?.toUpperCase()}</div>
+                                        </td>
+                                        <td style={{ padding: '16px 20px' }}>
+                                            <span style={{
+                                                padding: '4px 10px',
+                                                borderRadius: 20,
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                                background:
+                                                    getStatusNormalized(txn.status) === 'dibayar' ? 'rgba(46, 204, 113, 0.1)' :
+                                                        getStatusNormalized(txn.status) === 'diambil' ? 'rgba(253, 203, 110, 0.1)' : 'rgba(255, 107, 107, 0.1)',
+                                                color:
+                                                    getStatusNormalized(txn.status) === 'dibayar' ? 'var(--green)' :
+                                                        getStatusNormalized(txn.status) === 'diambil' ? 'var(--yellow)' : 'var(--coral)',
+                                                border: `1px solid ${getStatusNormalized(txn.status) === 'dibayar' ? 'rgba(46, 204, 113, 0.2)' :
+                                                    getStatusNormalized(txn.status) === 'diambil' ? 'rgba(253, 203, 110, 0.2)' : 'rgba(255, 107, 107, 0.2)'
+                                                    }`
+                                            }}>
+                                                {getStatusNormalized(txn.status) === 'dibayar' ? 'PESANAN DIBAYAR' :
+                                                    getStatusNormalized(txn.status) === 'diambil' ? 'PESANAN DIAMBIL' : 'PESANAN PROSES'}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '16px 20px' }}>
+                                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                                {getStatusNormalized(txn.status) === 'proses' && (
+                                                    <button
+                                                        onClick={() => handleUpdateStatus(txn, 'diambil')}
+                                                        style={{
+                                                            padding: '8px 12px',
+                                                            background: 'var(--yellow)',
+                                                            color: '#000',
+                                                            border: 'none',
+                                                            borderRadius: 8,
+                                                            fontSize: 12,
+                                                            fontWeight: 600,
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: 6
+                                                        }}
+                                                    >
+                                                        <CheckCircle size={14} /> Diambil
+                                                    </button>
+                                                )}
+                                                {getStatusNormalized(txn.status) === 'diambil' && (
+                                                    <button
+                                                        onClick={() => handleUpdateStatus(txn, 'dibayar')}
+                                                        style={{
+                                                            padding: '8px 12px',
+                                                            background: 'var(--green)',
+                                                            color: 'white',
+                                                            border: 'none',
+                                                            borderRadius: 8,
+                                                            fontSize: 12,
+                                                            fontWeight: 600,
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: 6
+                                                        }}
+                                                    >
+                                                        <CheckCircle size={14} /> Dibayar
+                                                    </button>
+                                                )}
+                                                {getStatusNormalized(txn.status) !== 'dibayar' && (
+                                                    <button
+                                                        onClick={() => {
+                                                            dispatch({ type: 'SET_CART', payload: txn.items });
+                                                            dispatch({ type: 'SET_EDIT_ORDER', payload: txn });
+                                                            setActiveTab('pos');
+                                                        }}
+                                                        style={{
+                                                            padding: '8px 12px',
+                                                            background: 'var(--purple)',
+                                                            color: 'white',
+                                                            border: 'none',
+                                                            borderRadius: 8,
+                                                            fontSize: 12,
+                                                            fontWeight: 600,
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: 6
+                                                        }}
+                                                    >
+                                                        ✏️ Edit
+                                                    </button>
+                                                )}
+                                                {getStatusNormalized(txn.status) === 'dibayar' && (
+                                                    <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 600 }}>Selesai</span>
+                                                )}
+                                                <button
+                                                    onClick={() => {
+                                                        if (window.confirm('Yakin ingin menghapus pesanan ini? Stok produk akan dikembalikan otomatis.')) {
+                                                            dispatch({ type: 'DELETE_ORDER', payload: txn.id });
+                                                            showToast('Pesanan berhasil dihapus! 🎉');
+                                                        }
+                                                    }}
+                                                    title="Hapus Pesanan"
+                                                    style={{
+                                                        padding: '8px',
+                                                        background: 'rgba(255, 107, 107, 0.1)',
+                                                        color: 'var(--coral)',
+                                                        border: '1px solid rgba(255, 107, 107, 0.2)',
+                                                        borderRadius: 8,
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        marginLeft: 'auto'
+                                                    }}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </React.Fragment>
                         ))}
                     </tbody>
                 </table >

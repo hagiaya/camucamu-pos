@@ -81,6 +81,23 @@ export default function ExpensesPage() {
     }).reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
     const countExpenses = expenses.filter(e => e.type !== 'capital').length;
 
+    // Group expenses by date for daily view
+    const groupedExpenses = filtered.filter(e => e.type !== 'capital').reduce((groups, expense) => {
+        const date = expense.date;
+        if (!groups[date]) {
+            groups[date] = {
+                date,
+                items: [],
+                total: 0
+            };
+        }
+        groups[date].items.push(expense);
+        groups[date].total += (parseInt(expense.amount) || 0);
+        return groups;
+    }, {});
+
+    const sortedDates = Object.keys(groupedExpenses).sort((a, b) => new Date(b) - new Date(a));
+
     const resetForm = () => {
         setForm({
             title: '',
@@ -231,7 +248,7 @@ export default function ExpensesPage() {
                     {/* Table Header */}
                     <div style={{
                         display: 'grid',
-                        gridTemplateColumns: '1.2fr 2fr 1.2fr 1.5fr 120px',
+                        gridTemplateColumns: '2fr 1.2fr 1.5fr 120px',
                         padding: '16px 24px',
                         fontSize: 11, fontWeight: 700,
                         color: 'var(--text-tertiary)',
@@ -240,85 +257,116 @@ export default function ExpensesPage() {
                         borderBottom: '1px solid var(--border)',
                         background: 'var(--bg-surface)',
                     }}>
-                        <span>TANGGAL</span>
                         <span>JUDUL PENGELUARAN</span>
                         <span>KATEGORI</span>
                         <span style={{ textAlign: 'right' }}>NOMINAL</span>
                         <span style={{ textAlign: 'center' }}>AKSI</span>
                     </div>
 
-                    {/* Expense Rows */}
-                    {filtered.length === 0 ? (
+                    {/* Expense Rows Grouped by Date */}
+                    {sortedDates.length === 0 ? (
                         <div style={{ padding: 60, textAlign: 'center' }}>
                             <div style={{ fontSize: 40, marginBottom: 12 }}>💸</div>
                             <div style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}>Belum ada pengeluaran dicatat</div>
                         </div>
                     ) : (
-                        filtered.filter(e => e.type !== 'capital').map((expense) => {
-                            return (
-                                <div key={expense.id} style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: '1.2fr 2fr 1.2fr 1.5fr 120px',
-                                    padding: '20px 24px',
+                        sortedDates.map((dateString) => (
+                            <div key={dateString}>
+                                {/* Daily Header/Total */}
+                                <div style={{
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    padding: '12px 24px',
                                     borderBottom: '1px solid var(--border)',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
                                     alignItems: 'center',
-                                    transition: 'all 0.2s ease',
-                                }}
-                                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
-                                        <Calendar size={14} />
-                                        {new Date(expense.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    fontWeight: 700,
+                                    fontSize: 13,
+                                    color: 'var(--text-primary)'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <Calendar size={14} style={{ color: 'var(--teal-light)' }} />
+                                        <span>
+                                            {new Date(dateString).toLocaleDateString('id-ID', {
+                                                weekday: 'long',
+                                                day: 'numeric',
+                                                month: 'long',
+                                                year: 'numeric'
+                                            })}
+                                        </span>
                                     </div>
-
-                                    <div>
-                                        <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>
-                                            {expense.title}
-                                        </div>
-                                        {expense.notes && (
-                                            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>
-                                                {expense.notes}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div>
-                                        <span style={{
-                                            fontSize: 11, padding: '4px 10px',
-                                            borderRadius: 20,
-                                            background: 'var(--bg-surface)',
-                                            border: '1px solid var(--border)',
-                                            color: 'var(--text-secondary)',
-                                            fontWeight: 600,
-                                        }}>{expense.category}</span>
-                                    </div>
-
-                                    <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 16, color: 'var(--coral)' }}>
-                                        {formatRupiah(expense.amount)}
-                                    </div>
-
-                                    <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
-                                        <button onClick={() => openEdit(expense)}
-                                            style={{
-                                                padding: '8px', background: 'rgba(78, 205, 196, 0.12)',
-                                                border: '1px solid rgba(78, 205, 196, 0.2)', borderRadius: 10, cursor: 'pointer',
-                                                color: 'var(--teal-light)', transition: 'all 0.2s'
-                                            }}>
-                                            <Pencil size={14} />
-                                        </button>
-                                        <button onClick={() => setDeleteConfirm(expense.id)}
-                                            style={{
-                                                padding: '8px', background: 'rgba(255, 107, 107, 0.12)',
-                                                border: '1px solid rgba(255, 107, 107, 0.2)', borderRadius: 10, cursor: 'pointer',
-                                                color: 'var(--coral)', transition: 'all 0.2s'
-                                            }}>
-                                            <Trash2 size={14} />
-                                        </button>
+                                    <div style={{
+                                        color: 'var(--yellow)',
+                                        padding: '4px 12px',
+                                        borderRadius: 8,
+                                        background: 'rgba(255, 193, 7, 0.1)',
+                                        border: '1px solid rgba(255, 193, 7, 0.2)',
+                                        fontFamily: "'Space Grotesk', sans-serif"
+                                    }}>
+                                        Total: {formatRupiah(groupedExpenses[dateString].total)}
                                     </div>
                                 </div>
-                            );
-                        })
+
+                                {groupedExpenses[dateString].items.map((expense) => (
+                                    <div key={expense.id} style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: '2fr 1.2fr 1.5fr 120px',
+                                        padding: '16px 24px',
+                                        borderBottom: '1px solid var(--border)',
+                                        alignItems: 'center',
+                                        transition: 'all 0.2s ease',
+                                    }}
+                                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <div>
+                                            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>
+                                                {expense.title}
+                                            </div>
+                                            {expense.notes && (
+                                                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>
+                                                    {expense.notes}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div>
+                                            <span style={{
+                                                fontSize: 11, padding: '4px 10px',
+                                                borderRadius: 20,
+                                                background: 'var(--bg-surface)',
+                                                border: '1px solid var(--border)',
+                                                color: 'var(--text-secondary)',
+                                                fontWeight: 600,
+                                            }}>{expense.category}</span>
+                                        </div>
+
+                                        <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 16, color: 'var(--coral)' }}>
+                                            {formatRupiah(expense.amount)}
+                                        </div>
+
+                                        <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
+                                            <button onClick={() => openEdit(expense)}
+                                                style={{
+                                                    padding: '8px', background: 'rgba(78, 205, 196, 0.12)',
+                                                    border: '1px solid rgba(78, 205, 196, 0.2)', borderRadius: 10, cursor: 'pointer',
+                                                    color: 'var(--teal-light)', transition: 'all 0.2s'
+                                                }}>
+                                                <Pencil size={14} />
+                                            </button>
+                                            <button onClick={() => setDeleteConfirm(expense.id)}
+                                                style={{
+                                                    padding: '8px', background: 'rgba(255, 107, 107, 0.12)',
+                                                    border: '1px solid rgba(255, 107, 107, 0.2)', borderRadius: 10, cursor: 'pointer',
+                                                    color: 'var(--coral)', transition: 'all 0.2s'
+                                                }}>
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ))
                     )}
                 </div>
             </div>
