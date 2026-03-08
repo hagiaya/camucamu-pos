@@ -591,7 +591,7 @@ function FounderSection({ state, formatRupiah }) {
     const totalExpenses = filteredExpenses.filter(e => e.type !== 'capital').reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
     const totalRevenue = filteredTransactions.reduce((sum, t) => sum + t.total, 0);
     const rawProfit = filteredTransactions.reduce((sum, t) => sum + (t.profit || 0), 0);
-    const totalProfit = rawProfit - totalExpenses;
+    const totalProfit = rawProfit;
 
     const splits = [
         { name: 'Reza', share: 0.30, icon: '🧔' },
@@ -661,7 +661,7 @@ function FounderSection({ state, formatRupiah }) {
                         <div className="result-value">
                             {totalProfit >= 0 ? formatRupiah(totalProfit) : `- ${formatRupiah(Math.abs(totalProfit))}`}
                         </div>
-                        <div className="result-label">{totalProfit >= 0 ? "Net Profit (Sisa Dibagi)" : "Masih Proses Balik Modal"}</div>
+                        <div className="result-label">{totalProfit >= 0 ? "Total Profit (Sisa Dibagi)" : "Masih Proses Balik Modal"}</div>
                     </div>
                 </div>
 

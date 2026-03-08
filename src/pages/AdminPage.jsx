@@ -213,8 +213,8 @@ export default function AdminPage() {
 
         const expenses = filteredExpensesList.reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
         const revenue = filteredOrders.reduce((s, t) => s + (t.total || 0), 0);
-        const cost = filteredOrders.reduce((s, t) => s + (t.totalCost || 0), 0);
-        const profit = filteredOrders.reduce((s, t) => s + (t.profit || 0), 0) - expenses;
+        const cost = filteredOrders.reduce((s, t) => s + (t.totalCost || 0), 0) - expenses;
+        const profit = filteredOrders.reduce((s, t) => s + (t.profit || 0), 0);
 
         const chartMap = {};
 
@@ -273,7 +273,7 @@ export default function AdminPage() {
 
     const todayExpenses = todayExpensesList.reduce((s, e) => s + (parseInt(e.amount) || 0), 0);
     const todayRevenue = todayOrders.reduce((s, t) => s + (t.total || 0), 0);
-    const todayProfit = todayOrders.reduce((s, t) => s + (t.profit || 0), 0) - todayExpenses;
+    const todayProfit = todayOrders.reduce((s, t) => s + (t.profit || 0), 0);
 
     const founderSplits = [
         { name: 'Reza', share: 0.30, icon: '🧔' },
@@ -555,7 +555,7 @@ export default function AdminPage() {
 
                             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
                                 <span style={{ fontSize: 13, background: dashboardStats.profit >= 0 ? 'rgba(78, 205, 196, 0.1)' : 'rgba(255, 107, 107, 0.1)', color: dashboardStats.profit >= 0 ? 'var(--teal)' : 'var(--coral)', padding: '4px 10px', borderRadius: 20, fontWeight: 600 }}>
-                                    {dashboardStats.profit >= 0 ? 'Profit Bersih:' : 'Sisa Balik Modal:'} {formatRupiah(Math.abs(dashboardStats.profit))}
+                                    {dashboardStats.profit >= 0 ? 'Total Profit:' : 'Sisa Balik Modal:'} {formatRupiah(Math.abs(dashboardStats.profit))}
                                 </span>
                             </div>
 
